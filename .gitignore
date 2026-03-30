@@ -1,7 +1,53 @@
+# Data files (large datasets)
 data/raw/
 data/processed/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+env/
+
+# Environment
 .env
+.env.local
+
+# Node
 node_modules/
+frontend/node_modules/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+*.log
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# MinIO
+minio_data/
+
+# Grafana
+grafana_data/
+
+# PostgreSQL
+postgres_data/
+
+# Redis
+redis_data/
