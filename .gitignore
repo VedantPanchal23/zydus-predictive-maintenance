@@ -4,6 +4,7 @@ data/processed/
 
 # Python
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 *.egg-info/
@@ -35,6 +36,9 @@ Thumbs.db
 
 # Docker
 *.log
+backend/pytest_err.txt
+frontend/err.txt
+frontend/eslint-report.json
 
 # MLflow
 mlruns/
