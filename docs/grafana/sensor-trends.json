@@ -1,0 +1,55 @@
+{
+  "title": "Sensor Trends Pipeline",
+  "tags": ["telemetry", "zydus"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "templating": {
+    "list": [
+      {
+        "name": "EquipmentID",
+        "type": "query",
+        "query": "SELECT id, name FROM equipment",
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "Sensor Streaming Variables (Last 24h)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": "PostgreSQL",
+          "rawSql": "SELECT \"timestamp\" AS time, sensor_name as metric, value FROM sensor_readings WHERE equipment_id = $EquipmentID AND $__timeFilter(\"timestamp\") ORDER BY 1",
+          "format": "time_series"
+        },
+        {
+           "refId": "B", 
+           "rawSql": "SELECT \"timestamp\" AS time, 'Anomaly' as metric, value FROM sensor_readings WHERE equipment_id = $EquipmentID AND is_anomaly = true AND $__timeFilter(\"timestamp\") ORDER BY 1",
+           "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "showPoints": "auto"
+          }
+        },
+        "overrides": [
+           { 
+             "matcher": { "id": "byName", "options": "Anomaly" }, 
+             "properties": [ 
+               { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } },
+               { "id": "custom.drawStyle", "value": "points" }
+             ] 
+           }
+        ]
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 }
+    }
+  ]
+}

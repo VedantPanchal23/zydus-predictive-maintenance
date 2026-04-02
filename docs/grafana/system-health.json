@@ -1,0 +1,37 @@
+{
+  "title": "System Health Overview",
+  "tags": ["infrastructure", "zydus"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "panels": [
+    {
+      "title": "Kafka Throughput",
+      "type": "stat",
+      "targets": [
+         { "rawSql": "SELECT count(*)/60 as msg_per_sec FROM sensor_readings WHERE timestamp > NOW() - INTERVAL '1 minute'" }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "fixed", "fixedColor": "blue" } } }
+    },
+    {
+      "title": "Generated ML Predictions (Today) Inference Layer",
+      "type": "stat",
+      "targets": [
+         { "rawSql": "SELECT count(*) FROM predictions WHERE predicted_at::date = CURRENT_DATE" }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } }
+    },
+    {
+       "title": "Database Query Log Velocity",
+       "type": "timeseries",
+       "targets": [
+          {
+             "rawSql": "SELECT timestamp as time, count(*) as inserts FROM sensor_readings WHERE $__timeFilter(timestamp) GROUP BY time ORDER BY time",
+             "format": "time_series"
+          }
+       ],
+       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "title": "Equipment Health Overview",
+  "tags": ["maintenance", "zydus"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "Failure Probability Status Matrix",
+      "type": "stat",
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT e.name as metric, p.failure_probability as value FROM predictions p INNER JOIN (SELECT equipment_id, MAX(predicted_at) as latest FROM predictions GROUP BY equipment_id) latest_preds ON p.equipment_id = latest_preds.equipment_id AND p.predicted_at = latest_preds.latest JOIN equipment e ON p.equipment_id = e.id ORDER BY p.failure_probability DESC",
+          "format": "table"
+        }
+      ],
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "colorMode": "background",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.4 },
+              { "color": "red", "value": 0.8 }
+            ]
+          },
+          "color": { "mode": "thresholds" },
+          "unit": "percentunit"
+        }
+      }
+    }
+  ]
+}
