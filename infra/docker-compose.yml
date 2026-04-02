@@ -147,7 +147,7 @@ services:
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: zydus-mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000
+    command: mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts "*"
     ports:
       - "5000:5000"
     volumes:
@@ -160,6 +160,58 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
+
+  # ── Airflow (ETL + ML orchestration UI) ───────────────────
+  airflow:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: zydus-airflow
+    command: >
+      bash -c "
+      airflow db migrate &&
+      (
+        airflow users create
+        --username admin
+        --password admin123
+        --firstname Airflow
+        --lastname Admin
+        --role Admin
+        --email admin@example.com ||
+        true
+      ) &&
+      airflow scheduler &
+      exec airflow webserver --port 8080
+      "
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__FERNET_KEY: i1Dto6S-b5kY-TsnEFZZWJetPfavnKuDDvA7o9qWpMU=
+      AIRFLOW__WEBSERVER__SECRET_KEY: zydus-airflow-secret
+      PROJECT_ROOT: /opt/zydus
+      PYTHONPATH: /opt/zydus
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports:
+      - "8080:8080"
+    volumes:
+      - airflow_home:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+      - ..:/opt/zydus
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - zydus-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   # ── FastAPI Backend ───────────────────────────────────────
@@ -177,11 +229,15 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    volumes:
+      - ../ml/artifacts:/app/ml_artifacts
     environment:
       DATABASE_URL: postgresql://zydus_user:zydus_pass@postgres:5432/zydus_db
       REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      ML_ARTIFACTS_DIR: /app/ml_artifacts
+      JWT_SECRET: zydus_secret_key_change_in_production
     networks:
       - zydus-network
     healthcheck:
@@ -190,6 +246,66 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    restart: unless-stopped
+
+  # ── Sensor Simulator ────────────────────────────────────
+  simulator:
+    build:
+      context: ../simulator
+      dockerfile: Dockerfile
+    container_name: zydus-simulator
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER: kafka:29092
+    networks:
+      - zydus-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os; os.kill(1, 0)' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  # ── Celery Worker (ML inference) ────────────────────────
+  celery-worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: zydus-celery-worker
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ../ml/artifacts:/app/ml_artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://zydus_user:zydus_pass@postgres:5432/zydus_db
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ML_ARTIFACTS_DIR: /app/ml_artifacts
+    networks:
+      - zydus-network
+    restart: unless-stopped
+
+  # ── Celery Beat (scheduler) ─────────────────────────────
+  celery-beat:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: zydus-celery-beat
+    command: celery -A celery_app beat --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    networks:
+      - zydus-network
     restart: unless-stopped
 
 # ── Volumes ───────────────────────────────────────────────
@@ -202,6 +318,7 @@ volumes:
   minio_data:
   grafana_data:
   mlflow_data:
+  airflow_home:
 
 # ── Network ───────────────────────────────────────────────
 networks:
