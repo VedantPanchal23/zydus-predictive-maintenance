@@ -1,0 +1,42 @@
+{
+  "selected_sensors": [
+    "s2",
+    "s3",
+    "s4",
+    "s7",
+    "s11"
+  ],
+  "feature_columns": [
+    "s2_rmean5",
+    "s2_rmean10",
+    "s2_rstd5",
+    "s2_rstd10",
+    "s2_rmin10",
+    "s2_rmax10",
+    "s3_rmean5",
+    "s3_rmean10",
+    "s3_rstd5",
+    "s3_rstd10",
+    "s3_rmin10",
+    "s3_rmax10",
+    "s4_rmean5",
+    "s4_rmean10",
+    "s4_rstd5",
+    "s4_rstd10",
+    "s4_rmin10",
+    "s4_rmax10",
+    "s7_rmean5",
+    "s7_rmean10",
+    "s7_rstd5",
+    "s7_rstd10",
+    "s7_rmin10",
+    "s7_rmax10",
+    "s11_rmean5",
+    "s11_rmean10",
+    "s11_rstd5",
+    "s11_rstd10",
+    "s11_rmin10",
+    "s11_rmax10"
+  ],
+  "n_features": 30
+}
