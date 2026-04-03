@@ -1,39 +1,111 @@
-# ============================================================
-# Zydus Pharma Oncology — Predictive Maintenance System
-# Docker Compose — All Services
-# ============================================================
+x-app-env: &app-env
+  DATABASE_URL: postgresql://${APP_DB_USER:-zydus_user}:${APP_DB_PASSWORD:-zydus_pass}@postgres:5432/${APP_DB_NAME:-zydus_db}
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+  ML_ARTIFACTS_DIR: /app/ml_artifacts
+  JWT_SECRET: ${JWT_SECRET:-change-this-before-production}
+  PREDICTION_CACHE_TTL_SECONDS: ${PREDICTION_CACHE_TTL_SECONDS:-300}
+  ML_DB_RETRIES: ${ML_DB_RETRIES:-3}
+  ML_REDIS_RETRIES: ${ML_REDIS_RETRIES:-3}
+  INGEST_DB_RETRIES: ${INGEST_DB_RETRIES:-3}
+  ALERT_DB_RETRIES: ${ALERT_DB_RETRIES:-3}
+  ALERT_REDIS_RETRIES: ${ALERT_REDIS_RETRIES:-3}
+  CRITICAL_FAILURE_PROB_THRESHOLD: ${CRITICAL_FAILURE_PROB_THRESHOLD:-0.80}
+  WARNING_FAILURE_PROB_THRESHOLD: ${WARNING_FAILURE_PROB_THRESHOLD:-0.40}
+  CRITICAL_ANOMALY_THRESHOLD: ${CRITICAL_ANOMALY_THRESHOLD:-0.90}
+  WARNING_ANOMALY_THRESHOLD: ${WARNING_ANOMALY_THRESHOLD:-0.70}
+  CRITICAL_DAYS_TO_FAILURE_THRESHOLD: ${CRITICAL_DAYS_TO_FAILURE_THRESHOLD:-3}
+  WARNING_DAYS_TO_FAILURE_THRESHOLD: ${WARNING_DAYS_TO_FAILURE_THRESHOLD:-14}
+  CRITICAL_ALERT_COOLDOWN_HOURS: ${CRITICAL_ALERT_COOLDOWN_HOURS:-6}
+  WARNING_ALERT_COOLDOWN_HOURS: ${WARNING_ALERT_COOLDOWN_HOURS:-2}
+  PREDICTION_STALE_MINUTES: ${PREDICTION_STALE_MINUTES:-10}
+
+x-airflow-env: &airflow-env
+  AIRFLOW_HOME: /opt/airflow
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+  AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-b1J0YkF5VXhJcUpiU0tScVZDaDJrQzdENW5rQ0J5ejN2VFlJdHlnUm5MSQ==}
+  AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS: "False"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow_pass}@airflow-postgres:5432/${AIRFLOW_DB_NAME:-airflow_db}
+  AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+  AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "True"
+  AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY:-change-airflow-web-secret}
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
+  AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+  RATELIMIT_STORAGE_URI: redis://redis:6379/1
+  PROJECT_ROOT: /opt/zydus
+  PYTHONPATH: /opt/zydus
+  MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+
+x-airflow-common: &airflow-common
+  build:
+    context: ./airflow
+    dockerfile: Dockerfile
+  image: zydus-airflow:local
+  environment: *airflow-env
+  volumes:
+    - airflow_logs:/opt/airflow/logs
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/webserver_config.py:/opt/airflow/webserver_config.py
+    - ..:/opt/zydus
+  depends_on:
+    airflow-postgres:
+      condition: service_healthy
+    mlflow:
+      condition: service_healthy
+  networks:
+    - zydus-network
 
 services:
-
-  # ── PostgreSQL + TimescaleDB ──────────────────────────────
   postgres:
     image: timescale/timescaledb:latest-pg15
     container_name: zydus-postgres
     environment:
-      POSTGRES_DB: zydus_db
-      POSTGRES_USER: zydus_user
-      POSTGRES_PASSWORD: zydus_pass
+      POSTGRES_DB: ${APP_DB_NAME:-zydus_db}
+      POSTGRES_USER: ${APP_DB_USER:-zydus_user}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:-zydus_pass}
     ports:
-      - "5432:5432"
+      - "${APP_DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     networks:
       - zydus-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zydus_user -d zydus_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${APP_DB_USER:-zydus_user} -d ${APP_DB_NAME:-zydus_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     restart: unless-stopped
 
-  # ── Redis ─────────────────────────────────────────────────
+  airflow-postgres:
+    image: postgres:15-alpine
+    container_name: zydus-airflow-postgres
+    environment:
+      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow_db}
+      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow_pass}
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+    networks:
+      - zydus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER:-airflow} -d ${AIRFLOW_DB_NAME:-airflow_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: zydus-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -46,7 +118,6 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── Zookeeper (Kafka dependency) ──────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zydus-zookeeper
@@ -55,7 +126,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
       KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok,stat,srvr"
     ports:
-      - "2181:2181"
+      - "${ZOOKEEPER_PORT:-2181}:2181"
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
@@ -69,7 +140,6 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # ── Kafka ─────────────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: zydus-kafka
@@ -79,36 +149,35 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:${KAFKA_PORT:-9092}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
-      - "9092:9092"
+      - "${KAFKA_PORT:-9092}:9092"
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
       - zydus-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
-      interval: 15s
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 20s
       timeout: 10s
-      retries: 5
-      start_period: 40s
+      retries: 8
+      start_period: 90s
     restart: unless-stopped
 
-  # ── MinIO (S3-compatible object storage) ──────────────────
   minio:
     image: minio/minio
     container_name: zydus-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     networks:
@@ -121,16 +190,15 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  # ── Grafana ───────────────────────────────────────────────
   grafana:
     image: grafana/grafana:latest
     container_name: zydus-grafana
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_SERVER_HTTP_PORT: 3001
     ports:
-      - "3001:3001"
+      - "${GRAFANA_PORT:-3001}:3001"
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
@@ -143,69 +211,63 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # ── MLflow ────────────────────────────────────────────────
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: zydus-mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts "*"
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "${MLFLOW_PORT:-5000}"
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --artifacts-destination
+      - /mlflow/artifacts
+      - --serve-artifacts
+      - --allowed-hosts
+      - "${MLFLOW_ALLOWED_HOSTS:-*}"
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:${MLFLOW_PORT:-5000}"
     volumes:
       - mlflow_data:/mlflow
     networks:
       - zydus-network
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:${MLFLOW_PORT:-5000}/health')\""]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 30s
     restart: unless-stopped
 
-  # ── Airflow (ETL + ML orchestration UI) ───────────────────
-  airflow:
-    build:
-      context: ./airflow
-      dockerfile: Dockerfile
-    container_name: zydus-airflow
-    command: >
-      bash -c "
-      airflow db migrate &&
-      (
+  airflow-init:
+    <<: *airflow-common
+    container_name: zydus-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - >
+        airflow db migrate &&
         airflow users create
-        --username admin
-        --password admin123
-        --firstname Airflow
-        --lastname Admin
-        --role Admin
-        --email admin@example.com ||
-        true
-      ) &&
-      airflow scheduler &
-      exec airflow webserver --port 8080
-      "
-    environment:
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__FERNET_KEY: i1Dto6S-b5kY-TsnEFZZWJetPfavnKuDDvA7o9qWpMU=
-      AIRFLOW__WEBSERVER__SECRET_KEY: zydus-airflow-secret
-      PROJECT_ROOT: /opt/zydus
-      PYTHONPATH: /opt/zydus
-      MLFLOW_TRACKING_URI: http://mlflow:5000
+        --username "${AIRFLOW_ADMIN_USERNAME:-admin}"
+        --password "${AIRFLOW_ADMIN_PASSWORD:-admin123}"
+        --firstname "Airflow"
+        --lastname "Admin"
+        --role "Admin"
+        --email "${AIRFLOW_ADMIN_EMAIL:-admin@example.com}" || true
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: zydus-airflow
+    command: webserver
     ports:
-      - "8080:8080"
-    volumes:
-      - airflow_home:/opt/airflow
-      - ./airflow/dags:/opt/airflow/dags
-      - ..:/opt/zydus
+      - "${AIRFLOW_PORT:-8080}:8080"
     depends_on:
-      mlflow:
-        condition: service_healthy
-    networks:
-      - zydus-network
+      airflow-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
       interval: 15s
@@ -214,14 +276,28 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # ── FastAPI Backend ───────────────────────────────────────
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: zydus-airflow-scheduler
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
   fastapi-backend:
     build:
       context: ../backend
       dockerfile: Dockerfile
     container_name: zydus-backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -229,15 +305,15 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      mlflow:
+        condition: service_healthy
     volumes:
       - ../ml/artifacts:/app/ml_artifacts
+    command: >
+      sh -c "python common/wait_for_dependencies.py --postgres --redis --kafka --mlflow --timeout 240 &&
+      uvicorn main:app --host 0.0.0.0 --port 8000"
     environment:
-      DATABASE_URL: postgresql://zydus_user:zydus_pass@postgres:5432/zydus_db
-      REDIS_URL: redis://redis:6379/0
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-      ML_ARTIFACTS_DIR: /app/ml_artifacts
-      JWT_SECRET: zydus_secret_key_change_in_production
+      <<: *app-env
     networks:
       - zydus-network
     healthcheck:
@@ -248,7 +324,6 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # ── Sensor Simulator ────────────────────────────────────
   simulator:
     build:
       context: ../simulator
@@ -269,13 +344,14 @@ services:
       start_period: 10s
     restart: always
 
-  # ── Celery Worker (ML inference) ────────────────────────
   celery-worker:
     build:
       context: ../backend
       dockerfile: Dockerfile
     container_name: zydus-celery-worker
-    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    command: >
+      sh -c "python common/wait_for_dependencies.py --postgres --redis --kafka --mlflow --timeout 240 &&
+      celery -A celery_app worker --loglevel=info --concurrency=${CELERY_WORKER_CONCURRENCY:-2}"
     volumes:
       - ../ml/artifacts:/app/ml_artifacts
     depends_on:
@@ -283,22 +359,22 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mlflow:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://zydus_user:zydus_pass@postgres:5432/zydus_db
-      REDIS_URL: redis://redis:6379/0
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      ML_ARTIFACTS_DIR: /app/ml_artifacts
+      <<: *app-env
     networks:
       - zydus-network
     restart: unless-stopped
 
-  # ── Celery Beat (scheduler) ─────────────────────────────
   celery-beat:
     build:
       context: ../backend
       dockerfile: Dockerfile
     container_name: zydus-celery-beat
-    command: celery -A celery_app beat --loglevel=info
+    command: >
+      sh -c "python common/wait_for_dependencies.py --redis --timeout 120 &&
+      celery -A celery_app beat --loglevel=info"
     depends_on:
       redis:
         condition: service_healthy
@@ -308,9 +384,9 @@ services:
       - zydus-network
     restart: unless-stopped
 
-# ── Volumes ───────────────────────────────────────────────
 volumes:
   postgres_data:
+  airflow_postgres_data:
   redis_data:
   zookeeper_data:
   zookeeper_log:
@@ -318,9 +394,8 @@ volumes:
   minio_data:
   grafana_data:
   mlflow_data:
-  airflow_home:
+  airflow_logs:
 
-# ── Network ───────────────────────────────────────────────
 networks:
   zydus-network:
     driver: bridge
