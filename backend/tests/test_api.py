@@ -1,8 +1,10 @@
 import pytest
 import httpx
 import time
+import os
 
 BASE_URL = "http://localhost:8000"
+READ_ONLY_MODE = os.environ.get("READ_ONLY_MODE", "1").strip().lower() not in {"0", "false", "no"}
 
 @pytest.fixture(scope="module")
 def api_client():
@@ -18,6 +20,14 @@ def auth_token(api_client):
 @pytest.fixture(scope="module")
 def auth_headers(auth_token):
     return {"Authorization": f"Bearer {auth_token}"}
+
+
+@pytest.fixture(scope="module")
+def viewer_auth_headers(api_client):
+    response = api_client.post("/auth/login", data={"username": "viewer1", "password": "view123"})
+    assert response.status_code == 200, "Viewer login failed on local DB."
+    viewer_token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {viewer_token}"}
 
 def test_health(api_client):
     res = api_client.get("/health")
@@ -101,6 +111,9 @@ def test_dashboard_summary(api_client, auth_headers):
         assert k in data
 
 def test_acknowledge_alert(api_client, auth_headers):
+    if READ_ONLY_MODE:
+        pytest.skip("READ_ONLY_MODE enabled; skipping mutating alert acknowledgement check.")
+
     # Dynamically find an unacknowledged alert to test
     alerts_res = api_client.get("/api/alerts?status=open&limit=1", headers=auth_headers)
     data = alerts_res.json()
@@ -114,6 +127,9 @@ def test_acknowledge_alert(api_client, auth_headers):
         pytest.skip("No unacknowledged alerts found in live DB to test logic.")
 
 def test_complete_workorder(api_client, auth_headers):
+    if READ_ONLY_MODE:
+        pytest.skip("READ_ONLY_MODE enabled; skipping mutating workorder completion check.")
+
     # Dynamically find an open work order
     wo_res = api_client.get("/api/workorders?status=open", headers=auth_headers)
     data = wo_res.json()
@@ -126,3 +142,17 @@ def test_complete_workorder(api_client, auth_headers):
         assert res.json()["completed_at"] is not None
     else:
         pytest.skip("No open work orders found in live DB to test logic.")
+
+
+def test_viewer_cannot_acknowledge_alert(api_client, viewer_auth_headers):
+    # Use a non-existent id so this remains non-mutating even if auth accidentally regresses.
+    res = api_client.patch("/api/alerts/999999/acknowledge", headers=viewer_auth_headers)
+    assert res.status_code == 401
+    assert res.json()["detail"]["message"] == "Insufficient permissions"
+
+
+def test_viewer_cannot_complete_workorder(api_client, viewer_auth_headers):
+    # Use a non-existent id so this remains non-mutating even if auth accidentally regresses.
+    res = api_client.patch("/api/workorders/999999/complete", headers=viewer_auth_headers)
+    assert res.status_code == 401
+    assert res.json()["detail"]["message"] == "Insufficient permissions"
