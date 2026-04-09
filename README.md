@@ -27,34 +27,72 @@ This system monitors drug manufacturing lines, cold storage units, HPLC machines
 - Docker & Docker Compose installed
 - Python 3.11+ (for ML data preparation)
 
-### 1. Start all services
+### 1. Configure environment
+```bash
+cp infra/.env.example infra/.env
+```
+
+Update `infra/.env` before production-style runs, especially:
+- `JWT_SECRET`
+- `AIRFLOW_WEBSERVER_SECRET_KEY`
+- `AIRFLOW_FERNET_KEY`
+- admin passwords for Airflow, Grafana, and MinIO
+
+### 2. Start all services
 ```bash
 cd infra
-docker-compose up -d
+docker compose up -d
 ```
 
-### 2. Verify services
+### 3. Verify services
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
-All 8 services should show as **healthy**.
+Core runtime services should show as **healthy**. `airflow-init` is expected to exit successfully after bootstrapping the metadata database and admin user.
 
-### 3. Access services
+### 4. Access services
 
 | Service | URL |
 |---------|-----|
 | FastAPI Backend | http://localhost:8000 |
 | API Docs (Swagger) | http://localhost:8000/docs |
+| Airflow | http://localhost:8080 |
 | Grafana | http://localhost:3001 |
 | MLflow | http://localhost:5000 |
 | MinIO Console | http://localhost:9001 |
 
-### 4. Prepare ML datasets
+### 5. Prepare ML datasets
 ```bash
 pip install pandas numpy scikit-learn pyarrow
 python ml/data_prep/prepare_all.py
 ```
+
+### 6. Validate the frontend
+```bash
+cd frontend
+npm install
+npm run check
+```
+
+### 7. Run full Docker smoke audit (read-only)
+```bash
+python scripts/docker_smoke_test.py --compose-file infra/docker-compose.yml
+```
+
+This mode validates APIs and infrastructure without mutating alerts/workorders.
+
+### 8. Optional mutation checks
+```bash
+python scripts/docker_smoke_test.py --compose-file infra/docker-compose.yml --allow-mutations
+```
+
+## Production Hardening Notes
+
+- Docker Compose now reads secrets and admin credentials from `infra/.env`.
+- MLflow uses a persistent backend store and artifact directory under the `mlflow_data` volume.
+- Airflow runs as separate `init`, `webserver`, and `scheduler` services with a dedicated metadata database.
+- The ML ETL DAG validates raw inputs, checks MLflow health, validates processed parquet outputs, and verifies the full artifact bundle after training.
 
 ## 📁 Project Structure
 
@@ -95,7 +133,3 @@ zydus-predictive-maintenance/
 - 4× Lab HPLC Machines (LAB-HPLC-01 to 04)
 - 4× Infusion Pumps (INF-PUMP-01 to 04)
 - 3× Radiation Units (RAD-UNIT-01 to 03)
-
-## 📄 License
-
-Proprietary — Zydus Pharma Oncology Pvt. Ltd.

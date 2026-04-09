@@ -43,6 +43,9 @@
 | MinIO | 9000/9001 | Model artifact storage |
 | Grafana | 3001 | Monitoring dashboards |
 | MLflow | 5000 | ML experiment tracking |
+| Airflow Webserver | 8080 | ETL and ML orchestration UI |
+| Airflow Scheduler | internal | Executes scheduled DAG tasks |
+| Airflow Metadata DB | internal | Stores DAG state, runs, and task metadata |
 
 ## Data Flow
 
@@ -69,3 +72,4 @@
 - **Models**: scikit-learn, XGBoost, PyTorch
 - **Tracking**: MLflow for experiment management
 - **Storage**: MinIO for model artifacts
+- **Orchestration**: Airflow webserver + scheduler with validation and retry-aware DAGs

@@ -47,6 +47,8 @@ Use this order in your showcase:
 
 ## 4. Demo Credentials
 
+These defaults now come from `infra/.env` for safer local/production-style configuration.
+
 ### Frontend / Backend login
 
 Defined in `backend/auth/auth.py`

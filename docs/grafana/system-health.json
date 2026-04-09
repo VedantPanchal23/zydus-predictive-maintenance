@@ -2,13 +2,30 @@
   "title": "System Health Overview",
   "tags": ["infrastructure", "zydus"],
   "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
   "refresh": "10s",
+  "templating": {
+    "list": []
+  },
   "panels": [
     {
       "title": "Kafka Throughput",
       "type": "stat",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfhxypndpqcqoe"
+      },
       "targets": [
-         { "rawSql": "SELECT count(*)/60 as msg_per_sec FROM sensor_readings WHERE timestamp > NOW() - INTERVAL '1 minute'" }
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfhxypndpqcqoe"
+          },
+          "rawSql": "SELECT NOW() AS time, count(*)/60.0 AS value FROM sensor_readings WHERE \"timestamp\" > NOW() - INTERVAL '1 minute'",
+          "format": "time_series"
+        }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "fixed", "fixedColor": "blue" } } }
@@ -16,22 +33,43 @@
     {
       "title": "Generated ML Predictions (Today) Inference Layer",
       "type": "stat",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfhxypndpqcqoe"
+      },
       "targets": [
-         { "rawSql": "SELECT count(*) FROM predictions WHERE predicted_at::date = CURRENT_DATE" }
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfhxypndpqcqoe"
+          },
+          "rawSql": "SELECT NOW() AS time, count(*) AS value FROM predictions WHERE predicted_at::date = CURRENT_DATE",
+          "format": "time_series"
+        }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } }
     },
     {
-       "title": "Database Query Log Velocity",
-       "type": "timeseries",
-       "targets": [
+      "title": "Database Query Log Velocity",
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfhxypndpqcqoe"
+      },
+      "targets": [
           {
-             "rawSql": "SELECT timestamp as time, count(*) as inserts FROM sensor_readings WHERE $__timeFilter(timestamp) GROUP BY time ORDER BY time",
-             "format": "time_series"
+            "refId": "C",
+            "datasource": {
+              "type": "grafana-postgresql-datasource",
+              "uid": "dfhxypndpqcqoe"
+            },
+            "rawSql": "SELECT date_trunc('minute', \"timestamp\") as time, count(*) as inserts FROM sensor_readings WHERE $__timeFilter(\"timestamp\") GROUP BY 1 ORDER BY 1",
+            "format": "time_series"
           }
-       ],
-       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 }
+      ],
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 }
     }
   ]
 }

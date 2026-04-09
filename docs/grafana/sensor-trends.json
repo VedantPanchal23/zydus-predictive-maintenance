@@ -2,14 +2,27 @@
   "title": "Sensor Trends Pipeline",
   "tags": ["telemetry", "zydus"],
   "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
   "refresh": "5s",
   "templating": {
     "list": [
       {
         "name": "EquipmentID",
         "type": "query",
-        "query": "SELECT id, name FROM equipment",
-        "refresh": 1
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "dfhxypndpqcqoe"
+        },
+        "query": "SELECT name AS __text, name AS __value FROM equipment ORDER BY name",
+        "definition": "SELECT name AS __text, name AS __value FROM equipment ORDER BY name",
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1,
+        "current": {
+          "text": "MFG-LINE-01",
+          "value": "MFG-LINE-01"
+        }
       }
     ]
   },
@@ -17,17 +30,19 @@
     {
       "title": "Sensor Streaming Variables (Last 24h)",
       "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "dfhxypndpqcqoe"
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": "PostgreSQL",
-          "rawSql": "SELECT \"timestamp\" AS time, sensor_name as metric, value FROM sensor_readings WHERE equipment_id = $EquipmentID AND $__timeFilter(\"timestamp\") ORDER BY 1",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "dfhxypndpqcqoe"
+          },
+          "rawSql": "SELECT sr.\"timestamp\" AS time, sr.sensor_name as metric, sr.value FROM sensor_readings sr JOIN equipment e ON e.id = sr.equipment_id WHERE e.name = '${EquipmentID}' AND $__timeFilter(sr.\"timestamp\") ORDER BY 1",
           "format": "time_series"
-        },
-        {
-           "refId": "B", 
-           "rawSql": "SELECT \"timestamp\" AS time, 'Anomaly' as metric, value FROM sensor_readings WHERE equipment_id = $EquipmentID AND is_anomaly = true AND $__timeFilter(\"timestamp\") ORDER BY 1",
-           "format": "time_series"
         }
       ],
       "fieldConfig": {
@@ -39,15 +54,7 @@
             "showPoints": "auto"
           }
         },
-        "overrides": [
-           { 
-             "matcher": { "id": "byName", "options": "Anomaly" }, 
-             "properties": [ 
-               { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } },
-               { "id": "custom.drawStyle", "value": "points" }
-             ] 
-           }
-        ]
+        "overrides": []
       },
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 }
     }
