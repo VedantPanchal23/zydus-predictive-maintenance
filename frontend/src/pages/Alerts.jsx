@@ -2,8 +2,29 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { acknowledgeAlert, getAlerts } from '../api/api';
+import DataTableCard from '../components/DataTableCard';
+import FilterTabs from '../components/FilterTabs';
+import PageHeader from '../components/PageHeader';
+import StatusBadge from '../components/StatusBadge';
+import { formatDateTime } from '../utils/formatters';
 
 const FILTERS = ['All', 'Critical', 'Warning', 'Acknowledged'];
+
+const COLUMNS = [
+  { key: 'severity', label: 'Severity' },
+  { key: 'equipment', label: 'Equipment' },
+  { key: 'message', label: 'Message' },
+  { key: 'time', label: 'Time' },
+  { key: 'action', label: 'Action', align: 'right' },
+];
+
+function alertTone(alert) {
+  if (alert.acknowledged_at) {
+    return 'neutral';
+  }
+
+  return alert.severity === 'CRITICAL' ? 'critical' : 'warning';
+}
 
 export default function Alerts() {
   const [filter, setFilter] = React.useState('All');
@@ -13,6 +34,7 @@ export default function Alerts() {
     queryKey: ['alerts', filter],
     queryFn: async () => {
       const params = { page: 1, limit: 100, status: 'ALL' };
+
       if (filter === 'Critical') params.severity = 'CRITICAL';
       if (filter === 'Warning') params.severity = 'WARNING';
       if (filter === 'Acknowledged') params.status = 'acknowledged';
@@ -36,96 +58,53 @@ export default function Alerts() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Alerts</h1>
-        <p className="mt-1 text-sm text-slate-600">Warnings and critical alerts created by the backend.</p>
-      </div>
+      <PageHeader
+        title="Alerts"
+        description="Warnings and critical alerts created by the backend."
+        meta={<StatusBadge tone="neutral">{data?.total || 0} total</StatusBadge>}
+      />
 
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((item) => (
-          <button
-            key={item}
-            onClick={() => setFilter(item)}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${
-              filter === item
-                ? 'bg-slate-900 text-white'
-                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
+      <FilterTabs items={FILTERS} value={filter} onChange={setFilter} />
 
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-3 text-sm text-slate-600">
-          Total alerts: {data?.total || 0}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Severity</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Equipment</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Message</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">Time</th>
-                <th className="px-4 py-3 text-right font-medium text-slate-600">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 bg-white">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="5" className="px-4 py-6 text-center text-slate-500">Loading alerts...</td>
-                </tr>
-              ) : data?.items?.length ? (
-                data.items.map((alert) => (
-                  <tr key={alert.id}>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                        alert.acknowledged_at
-                          ? 'bg-slate-100 text-slate-700'
-                          : alert.severity === 'CRITICAL'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {alert.severity}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-900">
-                      {alert.equipment_id ? (
-                        <Link to={`/equipment/${alert.equipment_id}`} className="font-medium hover:underline">
-                          {alert.equipment_name}
-                        </Link>
-                      ) : (
-                        alert.equipment_name
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{alert.message}</td>
-                    <td className="px-4 py-3 text-slate-500">{new Date(alert.created_at).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">
-                      {!alert.acknowledged_at ? (
-                        <button
-                          onClick={() => acknowledgeMutation.mutate(alert.id)}
-                          disabled={acknowledgeMutation.isPending}
-                          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Acknowledge
-                        </button>
-                      ) : (
-                        <span className="text-sm text-slate-500">Acknowledged</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+      <DataTableCard
+        columns={COLUMNS}
+        rows={data?.items || []}
+        isLoading={isLoading}
+        loadingMessage="Loading alerts..."
+        emptyMessage="No alerts are available for this filter."
+        renderRow={(alert) => (
+          <tr key={alert.id}>
+            <td className="px-4 py-3">
+              <StatusBadge tone={alertTone(alert)}>{alert.severity}</StatusBadge>
+            </td>
+            <td className="px-4 py-3 text-slate-900">
+              {alert.equipment_id ? (
+                <Link to={`/equipment/${alert.equipment_id}`} className="font-medium hover:underline">
+                  {alert.equipment_name}
+                </Link>
               ) : (
-                <tr>
-                  <td colSpan="5" className="px-4 py-6 text-center text-slate-500">No alerts are available for this filter.</td>
-                </tr>
+                alert.equipment_name
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </td>
+            <td className="px-4 py-3 text-slate-700">{alert.message}</td>
+            <td className="px-4 py-3 text-slate-500">{formatDateTime(alert.created_at)}</td>
+            <td className="px-4 py-3 text-right">
+              {!alert.acknowledged_at ? (
+                <button
+                  type="button"
+                  onClick={() => acknowledgeMutation.mutate(alert.id)}
+                  disabled={acknowledgeMutation.isPending}
+                  className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Acknowledge
+                </button>
+              ) : (
+                <span className="text-sm text-slate-500">Acknowledged</span>
+              )}
+            </td>
+          </tr>
+        )}
+      />
     </div>
   );
 }

@@ -1,11 +1,13 @@
 import React from 'react';
 
-export default function KpiCard({ title, value, icon: Icon, trend, trendLabel, colorClass }) {
+export default function KpiCard({ title, value, icon, trend, trendLabel, colorClass }) {
+  const IconComponent = icon;
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-center gap-3">
         <div className={`rounded-md p-3 ${colorClass}`}>
-          <Icon className="h-5 w-5 text-white" />
+          <IconComponent className="h-5 w-5 text-white" />
         </div>
         <div>
           <h4 className="text-sm font-medium text-slate-600">
@@ -16,7 +18,7 @@ export default function KpiCard({ title, value, icon: Icon, trend, trendLabel, c
           </p>
         </div>
       </div>
-      {trend && (
+      {trend && trendLabel && (
         <p className="mt-3 text-xs text-slate-500">
           {trend} {trendLabel}
         </p>
