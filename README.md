@@ -96,27 +96,37 @@ python scripts/docker_smoke_test.py --compose-file infra/docker-compose.yml --al
 
 ## 📁 Project Structure
 
-```
+```text
 zydus-predictive-maintenance/
+├── .github/              # CI/CD Workflows
+│   └── workflows/        # GitHub Actions checks and tests
 ├── backend/              # FastAPI backend
 │   ├── main.py           # Application entry point
-│   ├── requirements.txt  # Python dependencies
-│   ├── Dockerfile        # Backend container
-│   └── db/
-│       └── schema.sql    # TimescaleDB schema + seed data
-├── frontend/             # React frontend (Sprint 2+)
-├── ml/                   # Machine learning
-│   └── data_prep/
-│       └── prepare_all.py  # Dataset preparation
-├── simulator/            # Sensor data simulator
-│   └── sensor_simulator.py
-├── infra/                # Infrastructure
-│   └── docker-compose.yml
-├── data/
-│   ├── raw/              # Raw datasets (not in git)
-│   └── processed/        # Processed parquet files (not in git)
-└── docs/
-    └── architecture.md   # System architecture
+│   ├── ingestion/        # Kafka consumer services
+│   ├── ml_service/       # Inference and alert engine
+│   ├── db/               # TimescaleDB schema & seeds
+│   └── tests/            # API & ML reliability test suite
+├── frontend/             # React (Vite) frontend application
+│   ├── src/components/   # Reusable UI components
+│   ├── src/pages/        # Dashboard, Equipment, Work Orders
+│   └── src/api/          # Backend API services
+├── ml/                   # Machine learning pipelines
+│   ├── artifacts/        # Trained models & configurations
+│   ├── data_prep/        # Data extraction and pre-processing
+│   └── models/           # Training scripts & definitions
+├── simulator/            # Python-based equipment sensor simulator
+│   ├── sensor_simulator.py
+│   └── wait_for_kafka.py
+├── infra/                # Infrastructure definitions
+│   ├── docker-compose.yml 
+│   └── airflow/          # Airflow DAGs for ML retraining pipeline
+├── scripts/              # Utility scripts for CI and testing
+│   └── docker_smoke_test.py
+├── docs/                 # System documentation & runbooks
+│   └── grafana/          # Grafana dashboard JSON models
+└── data/                 # Local data directory (ignored in git)
+    ├── raw/              
+    └── processed/        
 ```
 
 ## 📊 Datasets
