@@ -1,0 +1,65 @@
+name: Docker Smoke Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build and start stack
+        run: docker compose -f infra/docker-compose.yml up -d --build
+
+      - name: Wait for backend readiness
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8000/health > /dev/null; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Backend health check timed out"
+          docker compose -f infra/docker-compose.yml ps
+          exit 1
+
+      - name: Frontend lint, test, build in Docker
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/frontend:/app" \
+            -w /app \
+            node:20-alpine \
+            sh -lc "npm install --silent && npm run lint && npm run test && npm run build"
+
+      - name: Backend pytest in read-only mode
+        run: |
+          docker exec zydus-backend sh -lc "python -m pip install -q pytest && READ_ONLY_MODE=1 pytest -q"
+
+      - name: Full docker smoke audit (read-only)
+        run: python scripts/docker_smoke_test.py --compose-file infra/docker-compose.yml
+
+      - name: Show service status on failure
+        if: failure()
+        run: |
+          docker compose -f infra/docker-compose.yml ps
+          docker logs --tail 200 zydus-backend || true
+          docker logs --tail 200 zydus-kafka || true
+          docker logs --tail 200 zydus-airflow || true
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v --remove-orphans
