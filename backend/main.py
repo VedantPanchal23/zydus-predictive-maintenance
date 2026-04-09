@@ -21,7 +21,7 @@ import psycopg2
 import psycopg2.extras
 import redis as redis_lib
 
-from auth.auth import router as auth_router, get_current_user
+from auth.auth import router as auth_router, get_current_user, require_role
 from websocket.live import router as ws_router
 
 # ── Logging ─────────────────────────────────────────────────
@@ -392,7 +392,7 @@ def list_alerts(
 
 
 @app.patch("/api/alerts/{alert_id}/acknowledge")
-def acknowledge_alert(alert_id: int, user: dict = Depends(get_current_user)):
+def acknowledge_alert(alert_id: int, user: dict = Depends(require_role("admin", "engineer"))):
     """Mark an alert as acknowledged."""
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -471,7 +471,7 @@ def list_workorders(
 
 
 @app.patch("/api/workorders/{workorder_id}/complete")
-def complete_workorder(workorder_id: int, user: dict = Depends(get_current_user)):
+def complete_workorder(workorder_id: int, user: dict = Depends(require_role("admin", "engineer"))):
     """Mark a work order as completed."""
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)

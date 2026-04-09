@@ -21,8 +21,14 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    broker_connection_retry_on_startup=True,
     worker_prefetch_multiplier=1,
     task_acks_late=True,
+    task_track_started=True,
+    task_time_limit=300,
+    task_soft_time_limit=270,
+    task_default_retry_delay=30,
+    result_expires=3600,
     beat_schedule={
         "run-predictions-every-60s": {
             "task": "ml_service.scheduler.run_all_predictions",

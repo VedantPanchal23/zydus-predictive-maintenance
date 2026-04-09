@@ -1,10 +1,11 @@
 """
-Celery Scheduler — Predictions every 60 seconds
+Celery Scheduler - Predictions every 60 seconds
 =================================================
 """
 
 import logging
 import time
+
 from celery_app import celery_app
 from ml_service.inference import InferenceService
 
@@ -28,17 +29,26 @@ def get_service():
     return _service
 
 
-@celery_app.task(name="ml_service.scheduler.run_all_predictions")
-def run_all_predictions():
+@celery_app.task(
+    name="ml_service.scheduler.run_all_predictions",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 2},
+)
+def run_all_predictions(self):
     """Run prediction for all 20 equipment units."""
     service = get_service()
     if not service.models_loaded:
-        logger.warning("Models not loaded — skipping prediction cycle")
+        service._load_models()
+    if not service.models_loaded:
+        logger.warning("Models not loaded - skipping prediction cycle")
         return {"status": "skipped", "reason": "models_not_loaded"}
 
     success = 0
     errors = 0
     ts = time.strftime("%H:%M:%S")
+    failed_equipment = []
 
     for eq_id in EQUIPMENT_IDS:
         try:
@@ -47,9 +57,21 @@ def run_all_predictions():
                 success += 1
             else:
                 errors += 1
+                failed_equipment.append(eq_id)
         except Exception as e:
-            logger.error(f"Prediction error for {eq_id}: {e}")
+            logger.error("Prediction error for %s: %s", eq_id, e)
             errors += 1
+            failed_equipment.append(eq_id)
 
-    logger.info(f"[{ts}] Predictions complete: {success}/{len(EQUIPMENT_IDS)} equipment processed")
-    return {"status": "complete", "success": success, "errors": errors}
+    logger.info(
+        "[%s] Predictions complete: %s/%s equipment processed",
+        ts,
+        success,
+        len(EQUIPMENT_IDS),
+    )
+    return {
+        "status": "complete",
+        "success": success,
+        "errors": errors,
+        "failed_equipment": failed_equipment,
+    }
