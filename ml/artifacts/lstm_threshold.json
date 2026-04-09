@@ -1,7 +1,7 @@
 {
-  "threshold": 0.10294435918331146,
-  "mean_error": 0.06443233788013458,
-  "std_error": 0.01925601065158844,
+  "threshold": 0.11546524614095688,
+  "mean_error": 0.0746474489569664,
+  "std_error": 0.02040889859199524,
   "input_size": 5,
   "window_size": 30,
   "hidden_size": 64,
