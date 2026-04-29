@@ -68,10 +68,13 @@ def test_critical_alert_triggered(db_conn):
         VALUES (1, 10.5, 0.85, 2.1)
     """)
     db_conn.commit()
+
+    cur.execute("SELECT name FROM equipment WHERE id = 1")
+    equipment_name = cur.fetchone()[0]
     
     # 2. Add it to Redis exactly like the ML engine
     r = redis.from_url(REDIS_URL)
-    r.set("pred:MFG-LINE-01", json.dumps({
+    r.set(f"pred:{equipment_name}", json.dumps({
         "anomaly_score": 10.5,
         "failure_probability": 0.85,
         "days_to_failure": 2.1

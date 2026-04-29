@@ -26,117 +26,65 @@ logging.basicConfig(
 logger = logging.getLogger("sensor-simulator")
 
 # ── Equipment Configuration ─────────────────────────────────
-EQUIPMENT = {
-    "MFG-LINE-01": {"type": "manufacturing_line", "sensors": {
+SENSOR_PROFILES = {
+    "manufacturing_line": {
         "vibration_hz": (10, 60),
         "temperature_c": (35, 75),
         "motor_current_a": (5, 30),
         "pressure_bar": (1, 10),
         "rotation_speed_rpm": (500, 3000),
-    }},
-    "MFG-LINE-02": {"type": "manufacturing_line", "sensors": {
-        "vibration_hz": (10, 60), "temperature_c": (35, 75),
-        "motor_current_a": (5, 30), "pressure_bar": (1, 10),
-        "rotation_speed_rpm": (500, 3000),
-    }},
-    "MFG-LINE-03": {"type": "manufacturing_line", "sensors": {
-        "vibration_hz": (10, 60), "temperature_c": (35, 75),
-        "motor_current_a": (5, 30), "pressure_bar": (1, 10),
-        "rotation_speed_rpm": (500, 3000),
-    }},
-    "MFG-LINE-04": {"type": "manufacturing_line", "sensors": {
-        "vibration_hz": (10, 60), "temperature_c": (35, 75),
-        "motor_current_a": (5, 30), "pressure_bar": (1, 10),
-        "rotation_speed_rpm": (500, 3000),
-    }},
-    "MFG-LINE-05": {"type": "manufacturing_line", "sensors": {
-        "vibration_hz": (10, 60), "temperature_c": (35, 75),
-        "motor_current_a": (5, 30), "pressure_bar": (1, 10),
-        "rotation_speed_rpm": (500, 3000),
-    }},
-    "COLD-UNIT-01": {"type": "cold_storage", "sensors": {
+    },
+    "cold_storage": {
         "temperature_c": (-25, -15),
         "humidity_percent": (30, 70),
         "compressor_load_percent": (20, 90),
         "door_open_count": (0, 5),
         "power_consumption_kw": (1, 8),
-    }},
-    "COLD-UNIT-02": {"type": "cold_storage", "sensors": {
-        "temperature_c": (-25, -15), "humidity_percent": (30, 70),
-        "compressor_load_percent": (20, 90),
-        "door_open_count": (0, 5), "power_consumption_kw": (1, 8),
-    }},
-    "COLD-UNIT-03": {"type": "cold_storage", "sensors": {
-        "temperature_c": (-25, -15), "humidity_percent": (30, 70),
-        "compressor_load_percent": (20, 90),
-        "door_open_count": (0, 5), "power_consumption_kw": (1, 8),
-    }},
-    "COLD-UNIT-04": {"type": "cold_storage", "sensors": {
-        "temperature_c": (-25, -15), "humidity_percent": (30, 70),
-        "compressor_load_percent": (20, 90),
-        "door_open_count": (0, 5), "power_consumption_kw": (1, 8),
-    }},
-    "LAB-HPLC-01": {"type": "lab_hplc", "sensors": {
+    },
+    "lab_hplc": {
         "column_pressure_bar": (50, 400),
         "flow_rate_ml_min": (0.1, 5.0),
         "temperature_c": (25, 60),
         "run_time_min": (0, 120),
         "uv_signal_mau": (0, 2000),
-    }},
-    "LAB-HPLC-02": {"type": "lab_hplc", "sensors": {
-        "column_pressure_bar": (50, 400), "flow_rate_ml_min": (0.1, 5.0),
-        "temperature_c": (25, 60), "run_time_min": (0, 120),
-        "uv_signal_mau": (0, 2000),
-    }},
-    "LAB-HPLC-03": {"type": "lab_hplc", "sensors": {
-        "column_pressure_bar": (50, 400), "flow_rate_ml_min": (0.1, 5.0),
-        "temperature_c": (25, 60), "run_time_min": (0, 120),
-        "uv_signal_mau": (0, 2000),
-    }},
-    "LAB-HPLC-04": {"type": "lab_hplc", "sensors": {
-        "column_pressure_bar": (50, 400), "flow_rate_ml_min": (0.1, 5.0),
-        "temperature_c": (25, 60), "run_time_min": (0, 120),
-        "uv_signal_mau": (0, 2000),
-    }},
-    "INF-PUMP-01": {"type": "infusion_pump", "sensors": {
+    },
+    "infusion_pump": {
         "flow_rate_ml_hr": (1, 500),
         "pressure_mmhg": (10, 300),
         "battery_level_percent": (0, 100),
         "occlusion_flag": (0, 1),
         "cycle_count": (0, 10000),
-    }},
-    "INF-PUMP-02": {"type": "infusion_pump", "sensors": {
-        "flow_rate_ml_hr": (1, 500), "pressure_mmhg": (10, 300),
-        "battery_level_percent": (0, 100),
-        "occlusion_flag": (0, 1), "cycle_count": (0, 10000),
-    }},
-    "INF-PUMP-03": {"type": "infusion_pump", "sensors": {
-        "flow_rate_ml_hr": (1, 500), "pressure_mmhg": (10, 300),
-        "battery_level_percent": (0, 100),
-        "occlusion_flag": (0, 1), "cycle_count": (0, 10000),
-    }},
-    "INF-PUMP-04": {"type": "infusion_pump", "sensors": {
-        "flow_rate_ml_hr": (1, 500), "pressure_mmhg": (10, 300),
-        "battery_level_percent": (0, 100),
-        "occlusion_flag": (0, 1), "cycle_count": (0, 10000),
-    }},
-    "RAD-UNIT-01": {"type": "radiation_unit", "sensors": {
+    },
+    "radiation_unit": {
         "beam_current_ma": (1, 50),
         "dose_rate_gy_min": (0, 10),
         "cooling_temp_c": (15, 35),
         "arc_voltage_v": (100, 500),
         "pulse_count": (0, 100000),
-    }},
-    "RAD-UNIT-02": {"type": "radiation_unit", "sensors": {
-        "beam_current_ma": (1, 50), "dose_rate_gy_min": (0, 10),
-        "cooling_temp_c": (15, 35), "arc_voltage_v": (100, 500),
-        "pulse_count": (0, 100000),
-    }},
-    "RAD-UNIT-03": {"type": "radiation_unit", "sensors": {
-        "beam_current_ma": (1, 50), "dose_rate_gy_min": (0, 10),
-        "cooling_temp_c": (15, 35), "arc_voltage_v": (100, 500),
-        "pulse_count": (0, 100000),
-    }},
+    },
+}
+
+EQUIPMENT = {
+    "GRAN-LINE-01": {"type": "granulation_line", "profile": "manufacturing_line"},
+    "TABLET-PRESS-01": {"type": "tablet_press", "profile": "manufacturing_line"},
+    "BLISTER-PACK-01": {"type": "blister_packer", "profile": "manufacturing_line"},
+    "CAPSULE-FILL-01": {"type": "capsule_filler", "profile": "manufacturing_line"},
+    "COATING-DRUM-01": {"type": "coating_machine", "profile": "manufacturing_line"},
+    "VIAL-WASHER-01": {"type": "vial_washer", "profile": "manufacturing_line"},
+    "ASEPTIC-FILL-01": {"type": "aseptic_filler", "profile": "manufacturing_line"},
+    "CIP-SKID-01": {"type": "cip_skid", "profile": "manufacturing_line"},
+    "ULT-FREEZER-01": {"type": "ultra_low_freezer", "profile": "cold_storage"},
+    "COLD-ROOM-01": {"type": "cold_room", "profile": "cold_storage"},
+    "CHILLER-LOOP-01": {"type": "chiller_loop", "profile": "cold_storage"},
+    "STABILITY-CHAMBER-01": {"type": "stability_chamber", "profile": "cold_storage"},
+    "HPLC-STACK-01": {"type": "hplc_system", "profile": "lab_hplc"},
+    "LCMS-01": {"type": "lc_ms", "profile": "lab_hplc"},
+    "DISSOLUTION-01": {"type": "dissolution_tester", "profile": "lab_hplc"},
+    "TOC-ANALYZER-01": {"type": "toc_analyzer", "profile": "lab_hplc"},
+    "INFUSION-PUMP-01": {"type": "infusion_pump", "profile": "infusion_pump"},
+    "SYRINGE-PUMP-01": {"type": "syringe_pump", "profile": "infusion_pump"},
+    "LINAC-01": {"type": "linear_accelerator", "profile": "radiation_unit"},
+    "CT-SCANNER-01": {"type": "ct_scanner", "profile": "radiation_unit"},
 }
 
 # ── Sensor unit mapping ─────────────────────────────────────
@@ -226,7 +174,7 @@ class SensorSimulator:
             logger.warning(f"Failed to fetch ambient temperature: {e}")
 
     # ── Value Generation ────────────────────────────────────
-    def _generate_value(self, equipment_name, sensor_name, min_val, max_val):
+    def _generate_value(self, equipment_name, equipment_profile, sensor_name, min_val, max_val):
         """Generate a sensor value — 80% normal, 20% anomaly injection."""
         key = f"{equipment_name}_{sensor_name}"
         state = self.anomaly_states.get(key)
@@ -286,7 +234,7 @@ class SensorSimulator:
 
         # ─ Apply ambient temperature offset for cold storage ─
         if (
-            equipment_name in ("COLD-UNIT-01", "COLD-UNIT-02")
+            equipment_profile == "cold_storage"
             and sensor_name == "temperature_c"
             and self.ambient_temp is not None
         ):
@@ -299,7 +247,7 @@ class SensorSimulator:
     # ── Main Loop ───────────────────────────────────────────
     def run(self):
         """Main simulation loop — publishes readings every 5 seconds."""
-        total_sensors = sum(len(e["sensors"]) for e in EQUIPMENT.values())
+        total_sensors = sum(len(SENSOR_PROFILES[e["profile"]]) for e in EQUIPMENT.values())
         logger.info(f"Starting sensor simulator")
         logger.info(f"  Equipment: {len(EQUIPMENT)} units")
         logger.info(f"  Sensors:   {total_sensors} total")
@@ -316,9 +264,14 @@ class SensorSimulator:
             ts = datetime.now(timezone.utc).isoformat()
 
             for eq_name, eq_info in EQUIPMENT.items():
-                for sensor_name, (min_val, max_val) in eq_info["sensors"].items():
+                sensor_map = SENSOR_PROFILES[eq_info["profile"]]
+                for sensor_name, (min_val, max_val) in sensor_map.items():
                     value, is_anomaly = self._generate_value(
-                        eq_name, sensor_name, min_val, max_val
+                        eq_name,
+                        eq_info["profile"],
+                        sensor_name,
+                        min_val,
+                        max_val,
                     )
 
                     reading = {

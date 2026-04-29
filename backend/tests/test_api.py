@@ -60,7 +60,7 @@ def test_get_equipment(api_client, auth_headers):
     for eq in data:
         assert "id" in eq
         assert "current_health" in eq
-        assert eq["current_health"] in ["healthy", "warning", "critical"]
+        assert eq["current_health"] in ["healthy", "warning", "critical", "unknown"]
 
 def test_get_equipment_detail(api_client, auth_headers):
     # Fetch list to dynamically get an ID instead of hardcoding 1, although ID 1 is seeded.

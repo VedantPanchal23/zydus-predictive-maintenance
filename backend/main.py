@@ -22,6 +22,7 @@ import psycopg2.extras
 import redis as redis_lib
 
 from auth.auth import router as auth_router, get_current_user, require_role
+from common.risk_guidance import classify_equipment_risk
 from websocket.live import router as ws_router
 
 # ── Logging ─────────────────────────────────────────────────
@@ -134,10 +135,10 @@ def root():
 
 @app.get("/api/equipment")
 def list_equipment(user: dict = Depends(get_current_user)):
-    """List all 20 equipment with current health status."""
+    """List all active equipment with current health and risk guidance."""
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM equipment ORDER BY id")
+    cur.execute("SELECT * FROM equipment WHERE status = 'active' ORDER BY id")
     equipments = cur.fetchall()
     cur.close()
     conn.close()
@@ -146,12 +147,20 @@ def list_equipment(user: dict = Depends(get_current_user)):
     result = []
     for eq in equipments:
         health = "unknown"
+        fp = None
+        anomaly = None
+        dtf = None
         if r:
             raw = r.get(f"pred:{eq['name']}")
             if raw:
                 pred = json.loads(raw)
-                fp = pred.get("failure_probability", 0)
-                health = "critical" if fp > 0.80 else "warning" if fp > 0.40 else "healthy"
+                fp = pred.get("failure_probability")
+                anomaly = pred.get("anomaly_score")
+                dtf = pred.get("days_to_failure")
+                fp_value = float(fp or 0)
+                health = "critical" if fp_value > 0.80 else "warning" if fp_value > 0.40 else "healthy"
+
+        risk = classify_equipment_risk(eq["type"], fp, anomaly, dtf)
 
         result.append({
             "id": eq["id"],
@@ -162,6 +171,12 @@ def list_equipment(user: dict = Depends(get_current_user)):
             "last_maintenance_date": eq["last_maintenance_date"].isoformat() if eq["last_maintenance_date"] else None,
             "status": eq["status"],
             "current_health": health,
+            "failure_probability": float(fp) if fp is not None else None,
+            "anomaly_score": float(anomaly) if anomaly is not None else None,
+            "days_to_failure": float(dtf) if dtf is not None else None,
+            "risk_level": risk["risk_level"],
+            "risk_reason": risk["risk_reason"],
+            "recommended_action": risk["recommended_action"],
         })
     return result
 
@@ -192,16 +207,24 @@ def get_equipment(equipment_id: int, user: dict = Depends(get_current_user)):
 
     prediction = None
     health = "unknown"
+    fp = None
+    anomaly = None
+    dtf = None
     if pred_row:
-        fp = pred_row["failure_probability"] or 0
-        health = "critical" if fp > 0.80 else "warning" if fp > 0.40 else "healthy"
+        fp = pred_row["failure_probability"]
+        anomaly = pred_row["anomaly_score"]
+        dtf = pred_row["days_to_failure"]
+        fp_value = float(fp or 0)
+        health = "critical" if fp_value > 0.80 else "warning" if fp_value > 0.40 else "healthy"
         prediction = {
-            "anomaly_score": round(float(pred_row["anomaly_score"] or 0), 4),
-            "failure_probability": round(float(fp), 4),
-            "days_to_failure": round(float(pred_row["days_to_failure"] or 999), 1),
+            "anomaly_score": round(float(anomaly or 0), 4),
+            "failure_probability": round(float(fp_value), 4),
+            "days_to_failure": round(float(dtf or 999), 1),
             "confidence": round(float(pred_row["confidence"] or 0), 4),
             "predicted_at": pred_row["predicted_at"].isoformat() if pred_row["predicted_at"] else None,
         }
+
+    risk = classify_equipment_risk(eq["type"], fp, anomaly, dtf)
 
     return {
         "id": eq["id"],
@@ -214,6 +237,9 @@ def get_equipment(equipment_id: int, user: dict = Depends(get_current_user)):
         "current_health": health,
         "latest_prediction": prediction,
         "open_alerts_count": alert_count,
+        "risk_level": risk["risk_level"],
+        "risk_reason": risk["risk_reason"],
+        "recommended_action": risk["recommended_action"],
     }
 
 
@@ -631,8 +657,9 @@ def dashboard_summary(user: dict = Depends(get_current_user)):
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute("SELECT COUNT(*) as cnt FROM equipment")
-    total_equipment = cur.fetchone()["cnt"]
+    cur.execute("SELECT name FROM equipment WHERE status = 'active' ORDER BY id")
+    equipment_ids = [row["name"] for row in cur.fetchall()]
+    total_equipment = len(equipment_ids)
 
     cur.execute("SELECT COUNT(*) as cnt FROM alerts WHERE acknowledged_at IS NULL")
     open_alerts = cur.fetchone()["cnt"]
@@ -650,19 +677,12 @@ def dashboard_summary(user: dict = Depends(get_current_user)):
     r = get_redis()
     healthy = warning = critical = 0
     scores = []
-    equipment_ids = [
-        "MFG-LINE-01", "MFG-LINE-02", "MFG-LINE-03", "MFG-LINE-04", "MFG-LINE-05",
-        "COLD-UNIT-01", "COLD-UNIT-02", "COLD-UNIT-03", "COLD-UNIT-04",
-        "LAB-HPLC-01", "LAB-HPLC-02", "LAB-HPLC-03", "LAB-HPLC-04",
-        "INF-PUMP-01", "INF-PUMP-02", "INF-PUMP-03", "INF-PUMP-04",
-        "RAD-UNIT-01", "RAD-UNIT-02", "RAD-UNIT-03",
-    ]
     for eq_id in equipment_ids:
         if r:
             raw = r.get(f"pred:{eq_id}")
             if raw:
                 pred = json.loads(raw)
-                fp = pred.get("failure_probability", 0)
+                fp = float(pred.get("failure_probability") or 0)
                 scores.append(1 - fp)  # health score = 1 - failure prob
                 if fp > 0.80:
                     critical += 1

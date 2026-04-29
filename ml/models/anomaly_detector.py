@@ -80,27 +80,62 @@ class LSTMAutoencoder(nn.Module):
 # ════════════════════════════════════════════════════════════
 def train_isolation_forest():
     logger.info("=" * 60)
-    logger.info("Training Isolation Forest on SECOM data")
+    logger.info("Training Isolation Forest")
     logger.info("=" * 60)
 
+    data_source = "secom"
     train_path = PROCESSED_DIR / "secom_train.parquet"
     test_path = PROCESSED_DIR / "secom_test.parquet"
-    if not train_path.exists():
-        logger.error(f"SECOM data not found at {train_path}. Run prepare_all.py first.")
-        return False
 
-    train_df = pd.read_parquet(train_path)
-    test_df = pd.read_parquet(test_path)
+    if train_path.exists() and test_path.exists():
+        train_df = pd.read_parquet(train_path)
+        test_df = pd.read_parquet(test_path)
 
-    feature_cols = [c for c in train_df.columns if c != "label"]
-    # Select top 5 features by variance for dimension compatibility
-    variances = train_df[feature_cols].var().sort_values(ascending=False)
-    top5_features = variances.head(N_SENSORS).index.tolist()
-    logger.info(f"Selected top-5 features: {top5_features}")
+        feature_cols = [c for c in train_df.columns if c != "label"]
+        # Select top 5 features by variance for dimension compatibility.
+        variances = train_df[feature_cols].var().sort_values(ascending=False)
+        top5_features = variances.head(N_SENSORS).index.tolist()
+        logger.info(f"Selected top-5 SECOM features: {top5_features}")
 
-    X_train = train_df[top5_features].values
-    X_test = test_df[top5_features].values
-    y_test = test_df["label"].values
+        X_train = train_df[top5_features].values
+        X_test = test_df[top5_features].values
+        y_test = test_df["label"].values
+    else:
+        data_source = "cmapss_fallback"
+        logger.warning("SECOM parquet files are missing, using CMAPSS fallback features for Isolation Forest")
+
+        cmapss_train = PROCESSED_DIR / "cmapss_train.parquet"
+        cmapss_test = PROCESSED_DIR / "cmapss_test.parquet"
+        if not cmapss_train.exists() or not cmapss_test.exists():
+            logger.error("Neither SECOM nor CMAPSS processed datasets are available for Isolation Forest")
+            return False
+
+        train_df = pd.read_parquet(cmapss_train)
+        test_df = pd.read_parquet(cmapss_test)
+
+        # Prefer the latest timestep of the selected sensors to keep feature count aligned with live inference.
+        fallback_cols = [f"t{WINDOW_SIZE - 1}_{sensor}" for sensor in SELECTED_SENSORS]
+        top5_features = [
+            c for c in fallback_cols
+            if c in train_df.columns and c in test_df.columns
+        ]
+
+        if len(top5_features) < 2:
+            dynamic_cols = [c for c in train_df.columns if c.startswith(f"t{WINDOW_SIZE - 1}_")]
+            top5_features = [c for c in dynamic_cols if c in test_df.columns][:N_SENSORS]
+
+        if not top5_features:
+            logger.error("Could not derive fallback feature columns for Isolation Forest")
+            return False
+
+        logger.info(f"Selected fallback CMAPSS features: {top5_features}")
+
+        X_train = train_df[top5_features].values
+        X_test = test_df[top5_features].values
+        if "RUL" in test_df.columns:
+            y_test = (test_df["RUL"].values <= 30).astype(int)
+        else:
+            y_test = np.zeros(len(test_df), dtype=int)
 
     # Save scaler for these features
     scaler = MinMaxScaler()
@@ -130,7 +165,8 @@ def train_isolation_forest():
         mlflow.log_params({
             "contamination": contamination,
             "n_estimators": n_estimators,
-            "n_features": N_SENSORS,
+            "n_features": len(top5_features),
+            "data_source": data_source,
         })
         mlflow.log_metrics({"precision": precision, "recall": recall, "f1": f1})
         mlflow.sklearn.log_model(model, "isolation_forest")

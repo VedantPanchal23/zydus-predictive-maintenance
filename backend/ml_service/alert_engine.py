@@ -41,14 +41,6 @@ PREDICTION_STALE_MINUTES = int(os.environ.get("PREDICTION_STALE_MINUTES", "10"))
 DB_RETRIES = int(os.environ.get("ALERT_DB_RETRIES", "3"))
 REDIS_RETRIES = int(os.environ.get("ALERT_REDIS_RETRIES", "3"))
 
-EQUIPMENT_IDS = [
-    "MFG-LINE-01", "MFG-LINE-02", "MFG-LINE-03", "MFG-LINE-04", "MFG-LINE-05",
-    "COLD-UNIT-01", "COLD-UNIT-02", "COLD-UNIT-03", "COLD-UNIT-04",
-    "LAB-HPLC-01", "LAB-HPLC-02", "LAB-HPLC-03", "LAB-HPLC-04",
-    "INF-PUMP-01", "INF-PUMP-02", "INF-PUMP-03", "INF-PUMP-04",
-    "RAD-UNIT-01", "RAD-UNIT-02", "RAD-UNIT-03",
-]
-
 EVENT_TOPICS = {
     "CRITICAL": "equipment.alerts.critical",
     "WARNING": "equipment.alerts.warning",
@@ -325,6 +317,11 @@ def run_alert_engine(self):
         logger.error("Cannot load equipment map: %s", exc)
         return {"status": "error", "reason": "equipment_map_unavailable"}
 
+    equipment_ids = sorted(equipment_map.keys())
+    if not equipment_ids:
+        logger.warning("No equipment entries found for alert cycle")
+        return {"status": "skipped", "reason": "no_equipment"}
+
     conn = get_db_connection()
     critical_count = 0
     warning_count = 0
@@ -335,7 +332,7 @@ def run_alert_engine(self):
     ts = time.strftime("%H:%M:%S")
 
     try:
-        for equipment_id in EQUIPMENT_IDS:
+        for equipment_id in equipment_ids:
             try:
                 raw_prediction = redis_client.get(f"pred:{equipment_id}")
                 if not raw_prediction:

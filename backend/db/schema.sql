@@ -64,26 +64,26 @@ CREATE TABLE work_orders (
 SELECT create_hypertable('sensor_readings', 'timestamp');
 
 -- ============================================================
--- Seed 20 equipment rows (5 types × 3–5 units each)
+-- Seed 20 equipment rows (20 presentation-ready equipment categories)
 -- ============================================================
 INSERT INTO equipment (name, type, location, install_date, last_maintenance_date) VALUES
-('MFG-LINE-01', 'manufacturing_line', 'Plant A - Floor 1', '2021-01-15', '2024-11-01'),
-('MFG-LINE-02', 'manufacturing_line', 'Plant A - Floor 1', '2021-03-20', '2024-10-15'),
-('MFG-LINE-03', 'manufacturing_line', 'Plant A - Floor 2', '2021-06-10', '2024-12-01'),
-('MFG-LINE-04', 'manufacturing_line', 'Plant B - Floor 1', '2022-01-05', '2024-11-20'),
-('MFG-LINE-05', 'manufacturing_line', 'Plant B - Floor 2', '2022-04-18', '2024-10-30'),
-('COLD-UNIT-01', 'cold_storage', 'Storage Room A', '2020-08-12', '2024-12-10'),
-('COLD-UNIT-02', 'cold_storage', 'Storage Room A', '2020-09-25', '2024-11-05'),
-('COLD-UNIT-03', 'cold_storage', 'Storage Room B', '2021-02-14', '2024-10-20'),
-('COLD-UNIT-04', 'cold_storage', 'Storage Room B', '2021-11-30', '2024-12-15'),
-('LAB-HPLC-01', 'lab_hplc', 'Lab Block 1', '2022-03-08', '2024-11-25'),
-('LAB-HPLC-02', 'lab_hplc', 'Lab Block 1', '2022-07-19', '2024-10-10'),
-('LAB-HPLC-03', 'lab_hplc', 'Lab Block 2', '2023-01-22', '2024-12-05'),
-('LAB-HPLC-04', 'lab_hplc', 'Lab Block 2', '2023-05-30', '2024-11-15'),
-('INF-PUMP-01', 'infusion_pump', 'Oncology Ward 1', '2021-09-14', '2024-12-01'),
-('INF-PUMP-02', 'infusion_pump', 'Oncology Ward 1', '2021-10-28', '2024-11-10'),
-('INF-PUMP-03', 'infusion_pump', 'Oncology Ward 2', '2022-02-17', '2024-10-25'),
-('INF-PUMP-04', 'infusion_pump', 'Oncology Ward 2', '2022-08-05', '2024-12-20'),
-('RAD-UNIT-01', 'radiation_unit', 'Radiation Block', '2020-05-20', '2024-11-30'),
-('RAD-UNIT-02', 'radiation_unit', 'Radiation Block', '2020-11-11', '2024-10-15'),
-('RAD-UNIT-03', 'radiation_unit', 'Radiation Block', '2021-07-03', '2024-12-08');
+('GRAN-LINE-01', 'granulation_line', 'Plant A - Granulation Bay', '2021-01-15', '2026-03-12'),
+('TABLET-PRESS-01', 'tablet_press', 'Plant A - Compression Suite', '2021-03-20', '2026-03-05'),
+('BLISTER-PACK-01', 'blister_packer', 'Plant A - Packaging Cell', '2021-06-10', '2026-03-21'),
+('CAPSULE-FILL-01', 'capsule_filler', 'Plant B - Capsule Suite', '2022-01-05', '2026-03-15'),
+('COATING-DRUM-01', 'coating_machine', 'Plant B - Coating Room', '2022-04-18', '2026-03-09'),
+('VIAL-WASHER-01', 'vial_washer', 'Plant C - Sterile Prep', '2022-08-02', '2026-03-07'),
+('ASEPTIC-FILL-01', 'aseptic_filler', 'Plant C - Filling Line', '2023-02-16', '2026-03-13'),
+('CIP-SKID-01', 'cip_skid', 'Utilities - CIP Zone', '2023-06-01', '2026-03-10'),
+('ULT-FREEZER-01', 'ultra_low_freezer', 'Cold Chain Room A', '2020-08-12', '2026-03-18'),
+('COLD-ROOM-01', 'cold_room', 'Cold Chain Room B', '2020-09-25', '2026-03-02'),
+('CHILLER-LOOP-01', 'chiller_loop', 'Utilities - Chiller Deck', '2021-02-14', '2026-03-14'),
+('STABILITY-CHAMBER-01', 'stability_chamber', 'QC Stability Lab', '2021-11-30', '2026-03-19'),
+('HPLC-STACK-01', 'hplc_system', 'QC Lab Block 1', '2022-03-08', '2026-03-08'),
+('LCMS-01', 'lc_ms', 'QC Lab Block 1', '2022-07-19', '2026-03-20'),
+('DISSOLUTION-01', 'dissolution_tester', 'QC Lab Block 2', '2023-01-22', '2026-03-06'),
+('TOC-ANALYZER-01', 'toc_analyzer', 'Water Quality Lab', '2023-05-30', '2026-03-11'),
+('INFUSION-PUMP-01', 'infusion_pump', 'Oncology Ward 1', '2021-09-14', '2026-03-16'),
+('SYRINGE-PUMP-01', 'syringe_pump', 'Oncology Ward 2', '2022-02-17', '2026-03-17'),
+('LINAC-01', 'linear_accelerator', 'Radiation Therapy Block', '2020-05-20', '2026-03-22'),
+('CT-SCANNER-01', 'ct_scanner', 'Imaging Center', '2021-07-03', '2026-03-04');

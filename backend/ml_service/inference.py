@@ -20,6 +20,7 @@ import redis
 import torch
 import torch.nn as nn
 
+from common.equipment_profiles import resolve_sensor_profile
 from common.reliability import retry_call
 
 
@@ -238,7 +239,8 @@ class InferenceService:
                     return None, None, None
 
                 eq_db_id, eq_type = row
-                sensors = SENSOR_ORDER.get(eq_type, [])
+                sensor_profile = resolve_sensor_profile(eq_type)
+                sensors = SENSOR_ORDER.get(sensor_profile, [])
                 if not sensors:
                     logger.warning("No sensor mapping configured for equipment type %s", eq_type)
                     return eq_db_id, eq_type, None

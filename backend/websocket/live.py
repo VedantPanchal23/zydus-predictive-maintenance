@@ -15,6 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import psycopg2
 import psycopg2.extras
 import redis as redis_lib
+from common.equipment_registry import list_active_equipment_ids
 
 logger = logging.getLogger("websocket")
 
@@ -70,21 +71,13 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-EQUIPMENT_IDS = [
-    "MFG-LINE-01", "MFG-LINE-02", "MFG-LINE-03", "MFG-LINE-04", "MFG-LINE-05",
-    "COLD-UNIT-01", "COLD-UNIT-02", "COLD-UNIT-03", "COLD-UNIT-04",
-    "LAB-HPLC-01", "LAB-HPLC-02", "LAB-HPLC-03", "LAB-HPLC-04",
-    "INF-PUMP-01", "INF-PUMP-02", "INF-PUMP-03", "INF-PUMP-04",
-    "RAD-UNIT-01", "RAD-UNIT-02", "RAD-UNIT-03",
-]
-
-
 def get_equipment_summary():
     """Fetch current status of all equipment from Redis predictions."""
     try:
         r = redis_lib.from_url(REDIS_URL)
         summaries = []
-        for eq_id in EQUIPMENT_IDS:
+        equipment_ids = list_active_equipment_ids()
+        for eq_id in equipment_ids:
             raw = r.get(f"pred:{eq_id}")
             if raw:
                 pred = json.loads(raw)
@@ -146,7 +139,7 @@ def get_recent_alerts(seconds=30):
                    a.created_at AT TIME ZONE 'UTC' as created_at
             FROM alerts a
             JOIN equipment e ON a.equipment_id = e.id
-            WHERE a.created_at > NOW() - INTERVAL '%s seconds'
+            WHERE a.created_at > NOW() - (%s * INTERVAL '1 second')
             ORDER BY a.created_at DESC
         """, (seconds,))
         rows = cur.fetchall()

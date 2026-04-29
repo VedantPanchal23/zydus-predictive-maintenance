@@ -7,17 +7,10 @@ import logging
 import time
 
 from celery_app import celery_app
+from common.equipment_registry import list_active_equipment_ids
 from ml_service.inference import InferenceService
 
 logger = logging.getLogger("scheduler")
-
-EQUIPMENT_IDS = [
-    "MFG-LINE-01", "MFG-LINE-02", "MFG-LINE-03", "MFG-LINE-04", "MFG-LINE-05",
-    "COLD-UNIT-01", "COLD-UNIT-02", "COLD-UNIT-03", "COLD-UNIT-04",
-    "LAB-HPLC-01", "LAB-HPLC-02", "LAB-HPLC-03", "LAB-HPLC-04",
-    "INF-PUMP-01", "INF-PUMP-02", "INF-PUMP-03", "INF-PUMP-04",
-    "RAD-UNIT-01", "RAD-UNIT-02", "RAD-UNIT-03",
-]
 
 _service = None
 
@@ -37,7 +30,7 @@ def get_service():
     retry_kwargs={"max_retries": 2},
 )
 def run_all_predictions(self):
-    """Run prediction for all 20 equipment units."""
+    """Run prediction for all active equipment units."""
     service = get_service()
     if not service.models_loaded:
         service._load_models()
@@ -45,12 +38,17 @@ def run_all_predictions(self):
         logger.warning("Models not loaded - skipping prediction cycle")
         return {"status": "skipped", "reason": "models_not_loaded"}
 
+    equipment_ids = list_active_equipment_ids()
+    if not equipment_ids:
+        logger.warning("No active equipment found - skipping prediction cycle")
+        return {"status": "skipped", "reason": "no_equipment"}
+
     success = 0
     errors = 0
     ts = time.strftime("%H:%M:%S")
     failed_equipment = []
 
-    for eq_id in EQUIPMENT_IDS:
+    for eq_id in equipment_ids:
         try:
             result = service.predict(eq_id)
             if result:
@@ -67,7 +65,7 @@ def run_all_predictions(self):
         "[%s] Predictions complete: %s/%s equipment processed",
         ts,
         success,
-        len(EQUIPMENT_IDS),
+        len(equipment_ids),
     )
     return {
         "status": "complete",
