@@ -32,7 +32,7 @@ KAFKA_BROKER = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 CRITICAL_FAILURE_PROB_THRESHOLD = float(os.environ.get("CRITICAL_FAILURE_PROB_THRESHOLD", "0.80"))
 WARNING_FAILURE_PROB_THRESHOLD = float(os.environ.get("WARNING_FAILURE_PROB_THRESHOLD", "0.40"))
 CRITICAL_ANOMALY_THRESHOLD = float(os.environ.get("CRITICAL_ANOMALY_THRESHOLD", "0.90"))
-WARNING_ANOMALY_THRESHOLD = float(os.environ.get("WARNING_ANOMALY_THRESHOLD", "0.70"))
+WARNING_ANOMALY_THRESHOLD = float(os.environ.get("WARNING_ANOMALY_THRESHOLD", "0.85"))
 CRITICAL_DAYS_TO_FAILURE_THRESHOLD = float(os.environ.get("CRITICAL_DAYS_TO_FAILURE_THRESHOLD", "3"))
 WARNING_DAYS_TO_FAILURE_THRESHOLD = float(os.environ.get("WARNING_DAYS_TO_FAILURE_THRESHOLD", "14"))
 CRITICAL_ALERT_COOLDOWN_HOURS = int(os.environ.get("CRITICAL_ALERT_COOLDOWN_HOURS", "6"))
@@ -157,12 +157,16 @@ def build_alert_classification(prediction: dict) -> dict | None:
         severity = "CRITICAL"
         cooldown_hours = CRITICAL_ALERT_COOLDOWN_HOURS
     else:
+        has_warning_failure_signal = (
+            fp >= WARNING_FAILURE_PROB_THRESHOLD
+            or days_to_failure <= WARNING_DAYS_TO_FAILURE_THRESHOLD
+        )
         if fp >= WARNING_FAILURE_PROB_THRESHOLD:
             reasons.append(f"failure probability {fp:.2f}")
-        if anomaly >= WARNING_ANOMALY_THRESHOLD:
-            reasons.append(f"anomaly score {anomaly:.2f}")
         if days_to_failure <= WARNING_DAYS_TO_FAILURE_THRESHOLD:
             reasons.append(f"predicted failure in {days_to_failure:.1f} days")
+        if anomaly >= WARNING_ANOMALY_THRESHOLD and has_warning_failure_signal:
+            reasons.append(f"anomaly score {anomaly:.2f}")
         if reasons:
             severity = "WARNING"
             cooldown_hours = WARNING_ALERT_COOLDOWN_HOURS

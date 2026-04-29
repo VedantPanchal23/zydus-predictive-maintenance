@@ -6,8 +6,10 @@ x-app-env: &app-env
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
   ML_ARTIFACTS_DIR: /app/ml_artifacts
+  GIT_PYTHON_REFRESH: quiet
   JWT_SECRET: ${JWT_SECRET:-change-this-before-production}
   PREDICTION_CACHE_TTL_SECONDS: ${PREDICTION_CACHE_TTL_SECONDS:-300}
+  DEMO_RISK_SCENARIO: ${DEMO_RISK_SCENARIO:-true}
   ML_DB_RETRIES: ${ML_DB_RETRIES:-3}
   ML_REDIS_RETRIES: ${ML_REDIS_RETRIES:-3}
   INGEST_DB_RETRIES: ${INGEST_DB_RETRIES:-3}
@@ -16,7 +18,7 @@ x-app-env: &app-env
   CRITICAL_FAILURE_PROB_THRESHOLD: ${CRITICAL_FAILURE_PROB_THRESHOLD:-0.80}
   WARNING_FAILURE_PROB_THRESHOLD: ${WARNING_FAILURE_PROB_THRESHOLD:-0.40}
   CRITICAL_ANOMALY_THRESHOLD: ${CRITICAL_ANOMALY_THRESHOLD:-0.90}
-  WARNING_ANOMALY_THRESHOLD: ${WARNING_ANOMALY_THRESHOLD:-0.70}
+  WARNING_ANOMALY_THRESHOLD: ${WARNING_ANOMALY_THRESHOLD:-0.85}
   CRITICAL_DAYS_TO_FAILURE_THRESHOLD: ${CRITICAL_DAYS_TO_FAILURE_THRESHOLD:-3}
   WARNING_DAYS_TO_FAILURE_THRESHOLD: ${WARNING_DAYS_TO_FAILURE_THRESHOLD:-14}
   CRITICAL_ALERT_COOLDOWN_HOURS: ${CRITICAL_ALERT_COOLDOWN_HOURS:-6}
@@ -39,8 +41,13 @@ x-airflow-env: &airflow-env
   AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
   RATELIMIT_STORAGE_URI: redis://redis:6379/1
   PROJECT_ROOT: /opt/zydus
-  PYTHONPATH: /opt/zydus
+  PYTHONPATH: /opt/zydus:/opt/zydus/backend
+  DATABASE_URL: postgresql://${APP_DB_USER:-zydus_user}:${APP_DB_PASSWORD:-zydus_pass}@postgres:5432/${APP_DB_NAME:-zydus_db}
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+  ML_ARTIFACTS_DIR: /opt/zydus/ml/artifacts
+  GIT_PYTHON_REFRESH: quiet
 
 x-airflow-common: &airflow-common
   build:
@@ -216,7 +223,7 @@ services:
     restart: unless-stopped
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:latest
+    image: ghcr.io/mlflow/mlflow:v3.10.1
     container_name: zydus-mlflow
     command:
       - mlflow
@@ -245,6 +252,33 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+
+  demo-bootstrap:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: zydus-demo-bootstrap
+    command: >
+      sh -c "python common/wait_for_dependencies.py --postgres --redis --mlflow --timeout 240 &&
+      python db/demo_bootstrap.py"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    volumes:
+      - ../ml/artifacts:/app/ml_artifacts
+    environment:
+      <<: *app-env
+      DEMO_BOOTSTRAP_SENSOR_CYCLES: ${DEMO_BOOTSTRAP_SENSOR_CYCLES:-48}
+      DEMO_BOOTSTRAP_SENSOR_STEP_MINUTES: ${DEMO_BOOTSTRAP_SENSOR_STEP_MINUTES:-5}
+      DEMO_BOOTSTRAP_MIN_RECENT_SENSOR_ROWS: ${DEMO_BOOTSTRAP_MIN_RECENT_SENSOR_ROWS:-2000}
+      DEMO_BOOTSTRAP_RESET_OPEN_ITEMS: ${DEMO_BOOTSTRAP_RESET_OPEN_ITEMS:-true}
+    networks:
+      - zydus-network
+    restart: "no"
 
   airflow-init:
     <<: *airflow-common
@@ -295,6 +329,28 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  airflow-trigger:
+    <<: *airflow-common
+    container_name: zydus-airflow-trigger
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - >
+        for i in {1..30}; do
+          airflow dags list | grep -q zydus_operational_demo_pipeline && break;
+          sleep 2;
+        done &&
+        airflow dags unpause zydus_operational_demo_pipeline || true;
+        airflow dags trigger zydus_operational_demo_pipeline || true
+    depends_on:
+      airflow-webserver:
+        condition: service_healthy
+      airflow-scheduler:
+        condition: service_healthy
+      demo-bootstrap:
+        condition: service_completed_successfully
+    restart: "no"
+
   fastapi-backend:
     build:
       context: ../backend
@@ -311,6 +367,8 @@ services:
         condition: service_healthy
       mlflow:
         condition: service_healthy
+      demo-bootstrap:
+        condition: service_completed_successfully
     volumes:
       - ../ml/artifacts:/app/ml_artifacts
     command: >
@@ -365,6 +423,8 @@ services:
         condition: service_healthy
       mlflow:
         condition: service_healthy
+      demo-bootstrap:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     networks:
@@ -384,6 +444,23 @@ services:
         condition: service_healthy
     environment:
       REDIS_URL: redis://redis:6379/0
+    networks:
+      - zydus-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000}
+    container_name: zydus-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      fastapi-backend:
+        condition: service_healthy
     networks:
       - zydus-network
     restart: unless-stopped

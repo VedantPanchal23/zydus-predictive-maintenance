@@ -1,5 +1,5 @@
 -- ============================================================
--- Zydus Pharma Oncology — Predictive Maintenance System
+-- Zydus Pharma Oncology - Predictive Maintenance System
 -- Database Schema (TimescaleDB + PostgreSQL 15)
 -- ============================================================
 
@@ -31,10 +31,10 @@ CREATE TABLE sensor_readings (
 CREATE TABLE predictions (
     id BIGSERIAL PRIMARY KEY,
     equipment_id INTEGER REFERENCES equipment(id),
-    anomaly_score FLOAT,
-    failure_probability FLOAT,
-    days_to_failure FLOAT,
-    confidence FLOAT,
+    anomaly_score FLOAT CHECK (anomaly_score IS NULL OR (anomaly_score >= 0 AND anomaly_score <= 1)),
+    failure_probability FLOAT CHECK (failure_probability IS NULL OR (failure_probability >= 0 AND failure_probability <= 1)),
+    days_to_failure FLOAT CHECK (days_to_failure IS NULL OR days_to_failure >= 0),
+    confidence FLOAT CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
     predicted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -62,6 +62,19 @@ CREATE TABLE work_orders (
 
 -- Convert sensor_readings to hypertable
 SELECT create_hypertable('sensor_readings', 'timestamp');
+
+-- Query performance for live dashboards and API pages
+CREATE UNIQUE INDEX IF NOT EXISTS idx_equipment_name_unique ON equipment (name);
+CREATE INDEX IF NOT EXISTS idx_sensor_readings_equipment_time
+    ON sensor_readings (equipment_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_sensor_readings_time
+    ON sensor_readings (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_predictions_equipment_time
+    ON predictions (equipment_id, predicted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_alerts_open_created
+    ON alerts (created_at DESC) WHERE acknowledged_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_work_orders_status_priority
+    ON work_orders (status, priority);
 
 -- ============================================================
 -- Seed 20 equipment rows (20 presentation-ready equipment categories)

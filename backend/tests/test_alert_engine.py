@@ -45,6 +45,18 @@ def test_build_alert_classification_returns_none_for_nominal_prediction():
     assert classification is None
 
 
+def test_build_alert_classification_ignores_isolated_warning_anomaly():
+    classification = build_alert_classification(
+        {
+            "failure_probability": 0.10,
+            "anomaly_score": 0.86,
+            "days_to_failure": 90,
+        }
+    )
+
+    assert classification is None
+
+
 def test_prediction_is_marked_stale_when_older_than_threshold():
     prediction = {
         "predicted_at": (

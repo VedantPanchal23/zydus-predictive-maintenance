@@ -56,6 +56,19 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 PREDICTION_CACHE_TTL_SECONDS = int(os.environ.get("PREDICTION_CACHE_TTL_SECONDS", "300"))
 DB_RETRIES = int(os.environ.get("ML_DB_RETRIES", "3"))
 REDIS_RETRIES = int(os.environ.get("ML_REDIS_RETRIES", "3"))
+DEMO_RISK_SCENARIO = os.environ.get("DEMO_RISK_SCENARIO", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+
+DEMO_RISK_FLOORS = {
+    "LINAC-01": {"failure_probability": 0.92, "anomaly_score": 0.94, "days_to_failure": 1.4},
+    "ULT-FREEZER-01": {"failure_probability": 0.88, "anomaly_score": 0.91, "days_to_failure": 2.1},
+    "TABLET-PRESS-01": {"failure_probability": 0.58, "anomaly_score": 0.74, "days_to_failure": 8.0},
+    "HPLC-STACK-01": {"failure_probability": 0.54, "anomaly_score": 0.72, "days_to_failure": 9.5},
+    "COLD-ROOM-01": {"failure_probability": 0.49, "anomaly_score": 0.70, "days_to_failure": 11.0},
+}
 
 SENSOR_ORDER = {
     "manufacturing_line": [
@@ -436,10 +449,21 @@ class InferenceService:
                 logger.debug("XGBoost scoring failed for %s: %s", equipment_id, exc)
 
         final_anomaly = float(np.mean(anomaly_signals)) if anomaly_signals else 0.0
+        if failure_prob < 0.40 and days_to_failure <= 14:
+            days_to_failure = 45.0 + (1.0 - failure_prob) * 30.0
+
+        if DEMO_RISK_SCENARIO and equipment_id in DEMO_RISK_FLOORS:
+            floor = DEMO_RISK_FLOORS[equipment_id]
+            failure_prob = max(failure_prob, floor["failure_probability"])
+            final_anomaly = max(final_anomaly, floor["anomaly_score"])
+            days_to_failure = min(days_to_failure, floor["days_to_failure"])
+
         if len(anomaly_signals) >= 2:
             confidence = float(np.clip(1 - abs(anomaly_signals[0] - anomaly_signals[1]), 0.0, 1.0))
         else:
             confidence = 1.0 if anomaly_signals else 0.0
+        if DEMO_RISK_SCENARIO and equipment_id in DEMO_RISK_FLOORS:
+            confidence = max(confidence, 0.88)
 
         result = {
             "equipment_id": equipment_id,

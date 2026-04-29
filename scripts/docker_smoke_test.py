@@ -8,6 +8,7 @@ skipped unless --allow-mutations is provided.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import subprocess
 import sys
@@ -26,6 +27,9 @@ class Context:
     base_url: str
     airflow_url: str
     mlflow_url: str
+    grafana_url: str
+    grafana_username: str
+    grafana_password: str
     allow_mutations: bool
     username: str
     password: str
@@ -57,6 +61,7 @@ def http_call(
     token: str | None = None,
     form: dict | None = None,
     json_body: dict | None = None,
+    basic_auth: tuple[str, str] | None = None,
     timeout: int = 20,
 ) -> tuple[int, str]:
     headers: dict[str, str] = {}
@@ -64,6 +69,9 @@ def http_call(
 
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    if basic_auth is not None:
+        raw = f"{basic_auth[0]}:{basic_auth[1]}".encode("utf-8")
+        headers["Authorization"] = "Basic " + base64.b64encode(raw).decode("ascii")
 
     if form is not None:
         payload = parse.urlencode(form).encode("utf-8")
@@ -116,6 +124,7 @@ def run_checks(ctx: Context) -> int:
             raise RuntimeError("one or more compose services are unhealthy")
         required_markers = [
             "zydus-backend",
+            "zydus-frontend",
             "zydus-kafka",
             "zydus-postgres",
             "zydus-redis",
@@ -358,12 +367,51 @@ def run_checks(ctx: Context) -> int:
         output = run_cmd(["docker", "exec", "zydus-airflow", "airflow", "dags", "list"])
         if "zydus_ml_etl_pipeline" not in output:
             raise RuntimeError("zydus_ml_etl_pipeline not found")
-        return "zydus_ml_etl_pipeline present"
+        if "zydus_operational_demo_pipeline" not in output:
+            raise RuntimeError("zydus_operational_demo_pipeline not found")
+        return "ML ETL and operational demo DAGs present"
 
     def check_mlflow_health() -> str:
         status, body = http_call("GET", f"{ctx.mlflow_url}/health")
         expect_status(status, (200,), body)
         return body.strip() or "ok"
+
+    def check_mlflow_runs() -> str:
+        status, body = http_call(
+            "POST",
+            f"{ctx.mlflow_url}/api/2.0/mlflow/experiments/search",
+            json_body={"max_results": 100},
+        )
+        expect_status(status, (200,), body)
+        payload = expect_json(body)
+        experiments = payload.get("experiments", [])
+        if not experiments:
+            raise RuntimeError("MLflow has no experiments")
+        return f"experiments={len(experiments)}"
+
+    def check_frontend_health() -> str:
+        status, body = http_call("GET", "http://localhost:5173/health")
+        expect_status(status, (200,), body)
+        return body.strip()
+
+    def check_grafana_dashboards() -> str:
+        status, body = http_call(
+            "GET",
+            f"{ctx.grafana_url}/api/search",
+            basic_auth=(ctx.grafana_username, ctx.grafana_password),
+        )
+        expect_status(status, (200,), body)
+        payload = expect_json(body)
+        titles = {item.get("title") for item in payload}
+        required = {
+            "Equipment Health Overview",
+            "Sensor Trends Pipeline",
+            "System Health Overview",
+        }
+        missing = sorted(required - titles)
+        if missing:
+            raise RuntimeError(f"missing Grafana dashboards: {missing}")
+        return f"dashboards={len(required)} folder=Zydus"
 
     def check_kafka_topics() -> str:
         output = run_cmd(
@@ -477,6 +525,9 @@ def run_checks(ctx: Context) -> int:
         ("Airflow health", check_airflow_health),
         ("Airflow DAG registration", check_airflow_dag),
         ("MLflow health", check_mlflow_health),
+        ("MLflow experiment runs", check_mlflow_runs),
+        ("Frontend health", check_frontend_health),
+        ("Grafana dashboards", check_grafana_dashboards),
         ("Kafka topics", check_kafka_topics),
         ("Postgres row counts", check_postgres_counts),
         ("Postgres freshness", check_postgres_freshness),
@@ -507,6 +558,9 @@ def parse_args() -> Context:
     parser.add_argument("--base-url", default="http://localhost:8000")
     parser.add_argument("--airflow-url", default="http://localhost:8080")
     parser.add_argument("--mlflow-url", default="http://localhost:5000")
+    parser.add_argument("--grafana-url", default="http://localhost:3001")
+    parser.add_argument("--grafana-username", default="admin")
+    parser.add_argument("--grafana-password", default="admin")
     parser.add_argument("--username", default="admin")
     parser.add_argument("--password", default="admin123")
     parser.add_argument(
@@ -521,6 +575,9 @@ def parse_args() -> Context:
         base_url=args.base_url.rstrip("/"),
         airflow_url=args.airflow_url.rstrip("/"),
         mlflow_url=args.mlflow_url.rstrip("/"),
+        grafana_url=args.grafana_url.rstrip("/"),
+        grafana_username=args.grafana_username,
+        grafana_password=args.grafana_password,
         allow_mutations=args.allow_mutations,
         username=args.username,
         password=args.password,

@@ -1,321 +1,211 @@
 # Zydus Predictive Maintenance Showcase Runbook
 
-## 1. What To Say In One Line
+## 1. One-Line Pitch
 
-This system monitors critical oncology equipment in real time, predicts failures early using machine learning, raises alerts before breakdowns happen, and shows everything on a live dashboard.
+This system monitors critical oncology equipment in real time, predicts failures before breakdown, creates maintenance alerts and work orders, and proves the pipeline through Airflow, MLflow, Grafana, Kafka, Redis, and TimescaleDB.
 
-## 2. Demo Story
+## 2. Start The Demo Stack
 
-Use this order in your showcase:
+Run from the repository root:
 
-1. Problem statement
-   - Hospitals and pharma operations should not wait for important machines to fail.
-   - We want early warning, better maintenance planning, and less downtime.
+```powershell
+docker compose -f infra\docker-compose.yml up -d --build
+```
 
-2. System overview
-   - Sensor data is generated continuously.
-   - Data is streamed through Kafka.
-   - It is stored in TimescaleDB.
-   - ML models analyze recent sensor history.
-   - Alerts and work orders are generated automatically.
-   - The frontend dashboard shows current status.
-   - Airflow shows ETL and ML pipeline orchestration.
-   - MLflow shows experiment and model tracking.
+Refresh the curated demo data before presenting:
 
-3. Live architecture flow
-   - Simulator -> Kafka -> TimescaleDB -> ML inference -> Redis cache -> Alerts/Work Orders -> Frontend/WebSocket
+```powershell
+docker compose -f infra\docker-compose.yml up --build demo-bootstrap airflow-trigger
+```
 
-4. Visual components to show
-   - Frontend dashboard
-   - Equipment detail page
-   - Alerts page
-   - Work orders page
-   - Logs page
-   - Airflow DAG UI
-   - MLflow experiment UI
-   - Database tables
-   - Optional: Grafana and MinIO
+Run the read-only confidence check:
 
-## 3. URLs To Open
+```powershell
+venv\Scripts\python.exe scripts\docker_smoke_test.py --compose-file infra\docker-compose.yml
+```
 
-- Frontend app: if running locally, usually `http://localhost:5173`
-- Backend API docs: `http://localhost:8000/docs`
-- Airflow: `http://localhost:8080`
-- MLflow: `http://localhost:5000`
-- Grafana: `http://localhost:3001`
-- MinIO console: `http://localhost:9001`
+Expected summary:
 
-## 4. Demo Credentials
+```text
+failures: 0
+```
 
-These defaults now come from `infra/.env` for safer local/production-style configuration.
+## 3. URLs And Credentials
 
-### Frontend / Backend login
+| Service | URL | Login |
+| --- | --- | --- |
+| Frontend | http://localhost:5173 | `admin / admin123` |
+| Backend docs | http://localhost:8000/docs | use frontend token flow |
+| Airflow | http://localhost:8080 | `admin / admin123` |
+| MLflow | http://localhost:5000 | none |
+| Grafana | http://localhost:3001 | `admin / admin` |
+| MinIO | http://localhost:9001 | `minioadmin / minioadmin` |
 
-Defined in `backend/auth/auth.py`
+Other app users:
 
-- Admin: `admin / admin123`
 - Engineer: `engineer1 / eng123`
 - Viewer: `viewer1 / view123`
 
-### Airflow
+## 4. Demo Story
 
-- Username: `admin`
-- Password: `admin123`
+1. Problem
+   - Oncology manufacturing and care delivery rely on expensive, safety-critical machines.
+   - Sudden failure can delay treatment, spoil temperature-sensitive medicine, or stop production.
 
-### Grafana
+2. Solution
+   - The platform continuously reads machine vitals.
+   - It predicts failure probability, anomaly score, and days to failure.
+   - It creates alerts and critical work orders before downtime happens.
 
-- Username: `admin`
-- Password: `admin`
+3. Live architecture
+   - Simulator -> Kafka -> TimescaleDB -> ML inference -> Redis -> Alerts/Work Orders -> Frontend/WebSocket
 
-### PostgreSQL / TimescaleDB
+4. Proof
+   - Airflow shows orchestration.
+   - MLflow shows experiment tracking.
+   - Grafana shows operational dashboards.
+   - Postgres proves real rows are flowing.
 
-- Host: `localhost`
-- Port: `5432`
-- Database: `zydus_db`
-- Username: `zydus_user`
-- Password: `zydus_pass`
-
-### MinIO
-
-- Username: `minioadmin`
-- Password: `minioadmin`
-
-### MLflow
-
-- No login configured in this local demo setup
-
-## 5. Main Components To Explain
+## 5. What To Show
 
 ### Frontend
 
-- React-based dashboard for live monitoring
-- Shows equipment health, predictions, alerts, work orders, and logs
+Open `http://localhost:5173`.
 
-### Backend
+Show:
 
-- FastAPI APIs
-- WebSocket for live updates
-- JWT-based login
+- Login
+- Dashboard
+- Equipment cards
+- Equipment detail page
+- Alerts
+- Work orders
+- Logs
 
-### Kafka
+Say:
 
-- Receives raw sensor readings in real time
-- Decouples sensor producer and backend consumer
+- The frontend is data-driven from FastAPI and WebSocket updates.
+- The demo state intentionally includes a few risky machines so the workflow is visible.
 
-### TimescaleDB
+### Backend APIs
 
-- Stores time-series sensor readings
-- Stores relational data like predictions, alerts, work orders, equipment
+Open `http://localhost:8000/docs`.
 
-### Redis
+Show:
 
-- Stores latest predictions for fast access
+- `/health`
+- `/auth/login`
+- `/api/equipment`
+- `/api/alerts`
+- `/api/workorders`
+- WebSocket is validated by the smoke test.
 
-### Celery
+Say:
 
-- Runs prediction and alert generation in background
+- JWT login and RBAC protect mutating actions.
+- The viewer role cannot acknowledge alerts or complete work orders.
 
 ### Airflow
 
-- Orchestrates ETL and ML pipeline
-- Current DAG:
-  - preprocess training data
-  - train anomaly models
-  - train failure models
-  - verify model artifacts
+Open `http://localhost:8080`.
+
+Show:
+
+- `zydus_ml_etl_pipeline`
+- `zydus_operational_demo_pipeline`
+- One recent successful DAG run
+- Task logs
+
+Say:
+
+- Airflow gives scheduling, dependency control, retries, and visibility into data/ML operations.
 
 ### MLflow
 
-- Tracks experiments, training runs, and logged models
+Open `http://localhost:5000`.
 
-## 6. Data Sources
+Show:
 
-1. Simulated live equipment data from `simulator/sensor_simulator.py`
-2. Open-Meteo ambient temperature for cold storage adjustment
-3. NASA CMAPSS dataset for failure prediction training
-4. SECOM dataset for anomaly detection training
-5. Internal generated data:
-   - predictions
-   - alerts
-   - work orders
+- Experiment list
+- Runs seeded by the demo bootstrap
+- Parameters, metrics, and artifacts
 
-## 7. One Data Point You Can Explain
+Say:
 
-Example raw sensor reading:
+- MLflow tracks model history so experiments are not lost or hidden in notebooks.
+
+### Grafana
+
+Open `http://localhost:3001`.
+
+Go to the `Zydus` folder and show:
+
+- Equipment Health Overview
+- Sensor Trends Pipeline
+- System Health Overview
+
+Say:
+
+- Grafana reads TimescaleDB directly through a provisioned datasource.
+- These dashboards are automatically loaded by Docker Compose.
+
+### Database Proof
+
+```powershell
+docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT COUNT(*) FROM sensor_readings;"
+docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT name, current_health, criticality FROM equipment ORDER BY id LIMIT 10;"
+docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT equipment_id, failure_probability, anomaly_score, days_to_failure FROM predictions ORDER BY predicted_at DESC LIMIT 5;"
+docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT severity, message, created_at FROM alerts ORDER BY created_at DESC LIMIT 5;"
+```
+
+## 6. A Simple Data Journey To Explain
+
+Example:
 
 ```json
 {
-  "equipment_id": "COLD-UNIT-01",
-  "equipment_type": "cold_storage",
+  "equipment_id": "COLD-ROOM-01",
   "sensor_name": "temperature_c",
   "value": -18.7,
-  "unit": "°C",
-  "timestamp": "2026-04-02T10:29:07+00:00",
+  "unit": "C",
+  "timestamp": "2026-04-29T10:29:07+00:00",
   "is_anomaly": false
 }
 ```
 
-Explain it like this:
-
-1. The simulator generates this sensor value.
-2. It is sent to Kafka topic `equipment.sensors.raw`.
-3. The Kafka consumer reads it and stores it in `sensor_readings`.
-4. The ML service looks at a recent set of readings, not just one row.
-5. It calculates:
-   - anomaly score
-   - failure probability
-   - days to failure
-6. That result is stored in `predictions` and cached in Redis.
-7. If risk is high, `alerts` and `work_orders` are created.
-8. The dashboard and WebSocket show the latest status.
-
-## 8. Tables To Show
-
-Main business tables:
-
-- `equipment`
-- `sensor_readings`
-- `predictions`
-- `alerts`
-- `work_orders`
-
-### Command to list tables
-
-```powershell
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\dt"
-```
-
-### Command to describe each table
-
-```powershell
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\d equipment"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\d sensor_readings"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\d predictions"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\d alerts"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\d work_orders"
-```
-
-### Command to show sample rows
-
-```powershell
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM equipment LIMIT 10;"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT 10;"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM predictions ORDER BY predicted_at DESC LIMIT 10;"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM alerts ORDER BY created_at DESC LIMIT 10;"
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM work_orders ORDER BY created_at DESC LIMIT 10;"
-```
-
-## 9. What To Show In Airflow
-
-Open `http://localhost:8080`
-
-Show:
-
-1. DAG list
-2. `zydus_ml_etl_pipeline`
-3. Task flow:
-   - `preprocess_training_data`
-   - `train_anomaly_models`
-   - `train_failure_models`
-   - `verify_artifacts`
-4. Run history
-5. Logs of one task
-
 Explain:
 
-- Airflow is used to automate ETL plus ML training steps.
-- It gives scheduling, monitoring, retries, and visibility.
+1. The simulator generates the reading.
+2. Kafka receives it on `equipment.sensors.raw`.
+3. The backend consumer stores it in TimescaleDB.
+4. The inference service analyzes recent history.
+5. The result is stored in `predictions` and cached in Redis.
+6. The alert engine creates alerts/work orders only when business thresholds are crossed.
+7. The frontend and WebSocket show the latest status.
 
-## 10. What To Show In MLflow
+## 7. 30-Second Viva Answer
 
-Open `http://localhost:5000`
+This is an end-to-end predictive maintenance platform for oncology equipment. It streams live telemetry, stores time-series data, predicts failure risk using ML, creates alerts and work orders, and displays everything in a real-time dashboard. Airflow handles orchestration, MLflow tracks model experiments, Grafana provides monitoring, and the Docker smoke test verifies the complete system before presentation.
 
-Show:
+## 8. Recovery Commands
 
-1. Experiment list
-2. Anomaly detection runs
-3. Failure prediction runs
-4. Parameters and metrics
-5. Logged models
-
-Explain:
-
-- MLflow stores training history, model metrics, and artifacts.
-- It helps compare runs and track which model version is being used.
-
-## 11. What To Show In Frontend
-
-1. Login page
-2. Dashboard
-3. Equipment cards
-4. Live sensor rows
-5. Equipment detail page
-6. Alerts page
-7. Work orders page
-8. Logs page
-
-Explain:
-
-- This is the main user-facing monitoring screen.
-- It is data-driven, not hardcoded business data.
-- Live sensor updates come through WebSocket.
-
-## 12. Very Short Viva Answer
-
-This project is a predictive maintenance platform for oncology equipment. It collects live sensor data, stores it, analyzes it with machine learning, predicts failure risk, generates alerts and work orders, and shows the results on a dashboard. We also use Airflow for ETL and ML pipeline orchestration, and MLflow for experiment tracking.
-
-## 13. Backup Commands Before Demo
-
-Check all containers:
+Check containers:
 
 ```powershell
-cd infra
-docker compose ps
+docker compose -f infra\docker-compose.yml ps
 ```
 
-Check database tables:
+Check logs:
 
 ```powershell
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\dt"
+docker logs --tail 120 zydus-backend
+docker logs --tail 120 zydus-airflow
+docker logs --tail 120 zydus-mlflow
+docker logs --tail 120 zydus-grafana
 ```
 
-Check Airflow user:
+Reset only the presentation demo state:
 
 ```powershell
-docker exec zydus-airflow airflow users list
+docker compose -f infra\docker-compose.yml up --build demo-bootstrap airflow-trigger
 ```
-
-Check latest alerts:
-
-```powershell
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM alerts ORDER BY created_at DESC LIMIT 5;"
-```
-
-Check latest predictions:
-
-```powershell
-docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM predictions ORDER BY predicted_at DESC LIMIT 5;"
-```
-
-## 14. Final Tip For Demo
-
-Do not start with tools first.
-
-Start with:
-
-1. Problem
-2. Solution
-3. Architecture
-4. One data point journey
-5. Frontend
-6. Airflow
-7. MLflow
-8. Database tables
-9. Final business impact
-
-End with:
-
-- reduced downtime
-- early detection
-- better maintenance planning
-- improved operational visibility

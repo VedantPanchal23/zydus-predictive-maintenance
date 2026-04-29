@@ -1,6 +1,6 @@
 # Full System Presentation Runbook
 
-Date: 2026-04-03
+Date: 2026-04-29
 Audience: Viva, technical panel, product/demo review
 Goal: Present frontend, APIs, Airflow, MLflow, Grafana, and full data pipeline with confidence in one flow.
 
@@ -10,32 +10,28 @@ This platform streams live equipment telemetry, predicts failure risk early with
 
 ## 2) What to Start Before Presentation (15-30 mins earlier)
 
-1. Start full stack:
+1. Start full stack from the repository root:
 
 ~~~powershell
-cd infra
-docker compose up -d --build
+docker compose -f infra\docker-compose.yml up -d --build
 ~~~
 
-2. Confirm all core services are healthy:
+2. Refresh the curated presentation state:
 
 ~~~powershell
-docker compose ps
+docker compose -f infra\docker-compose.yml up --build demo-bootstrap airflow-trigger
 ~~~
 
-3. Start frontend (if not running in a container):
+3. Confirm all core services are healthy:
 
 ~~~powershell
-cd ../frontend
-npm install
-npm run dev
+docker compose -f infra\docker-compose.yml ps
 ~~~
 
 4. Run a quick end-to-end smoke check:
 
 ~~~powershell
-cd ..
-python scripts/docker_smoke_test.py --base-url http://localhost:8000
+venv\Scripts\python.exe scripts\docker_smoke_test.py --compose-file infra\docker-compose.yml
 ~~~
 
 5. Keep these browser tabs ready:
@@ -113,8 +109,9 @@ python scripts/docker_smoke_test.py --base-url http://localhost:8000
 Open Airflow and show:
 1. DAG list
 2. zydus_ml_etl_pipeline
-3. Task flow and retries
-4. One task log
+3. zydus_operational_demo_pipeline
+4. Task flow and retries
+5. One task log
 
 Say:
 - Airflow orchestrates data prep and model training pipeline.
@@ -128,11 +125,10 @@ Open MLflow and show:
 3. Parameters and metrics
 4. Artifacts
 
-If runs are missing, generate them before presentation using:
+If runs are missing, refresh the demo state:
 
 ~~~powershell
-docker exec zydus-airflow python /opt/zydus/ml/models/anomaly_detector.py
-docker exec zydus-airflow python /opt/zydus/ml/models/failure_predictor.py
+docker compose -f infra\docker-compose.yml up --build demo-bootstrap airflow-trigger
 ~~~
 
 Important:
@@ -147,6 +143,7 @@ Open Grafana and show:
 
 Say:
 - Grafana provides operational monitoring for trend and status visibility.
+- The dashboards are provisioned automatically in the `Zydus` folder.
 
 ### Minute 10-11: Database Proof
 
@@ -185,8 +182,7 @@ Close with business impact:
 1. Backend not reachable:
 
 ~~~powershell
-cd infra
-docker compose ps
+docker compose -f infra\docker-compose.yml ps
 docker logs --tail 120 zydus-backend
 ~~~
 
@@ -207,7 +203,7 @@ docker logs --tail 120 zydus-simulator
 4. Quick confidence re-check:
 
 ~~~powershell
-python scripts/docker_smoke_test.py --base-url http://localhost:8000
+venv\Scripts\python.exe scripts\docker_smoke_test.py --compose-file infra\docker-compose.yml
 ~~~
 
 ## 6) Suggested Final Viva Answer (30 Seconds)
