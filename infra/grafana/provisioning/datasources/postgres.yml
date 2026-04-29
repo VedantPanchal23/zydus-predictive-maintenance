@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: Zydus Postgres
+    uid: dfhxypndpqcqoe
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: zydus_db
+    user: zydus_user
+    secureJsonData:
+      password: zydus_pass
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: true
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400

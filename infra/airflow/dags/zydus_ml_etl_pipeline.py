@@ -20,19 +20,25 @@ ARTIFACTS_DIR = PROJECT_ROOT / "ml" / "artifacts"
 MLFLOW_URI = os.environ.get("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 DAG_SCHEDULE = os.environ.get("AIRFLOW_ML_ETL_SCHEDULE") or None
 
-RAW_INPUTS = [
+REQUIRED_RAW_INPUTS = [
     "data/raw/nasa_cmapss/train_FD001.txt",
     "data/raw/nasa_cmapss/train_FD002.txt",
     "data/raw/nasa_cmapss/train_FD003.txt",
     "data/raw/nasa_cmapss/train_FD004.txt",
+]
+
+OPTIONAL_RAW_INPUTS = [
     "data/raw/secom/secom.data",
     "data/raw/secom/secom_labels.data",
 ]
 
-PROCESSED_OUTPUTS = [
+REQUIRED_PROCESSED_OUTPUTS = [
     "cmapss_train.parquet",
     "cmapss_val.parquet",
     "cmapss_test.parquet",
+]
+
+OPTIONAL_PROCESSED_OUTPUTS = [
     "secom_train.parquet",
     "secom_val.parquet",
     "secom_test.parquet",
@@ -86,8 +92,27 @@ def _validate_files(base_dir: Path, files: list[str], label: str) -> None:
         raise AirflowException(f"{label} validation failed ({'; '.join(parts)})")
 
 
+def _warn_missing_optional_files(base_dir: Path, files: list[str], label: str) -> None:
+    missing = []
+    empty = []
+
+    for file_name in files:
+        file_path = base_dir / file_name
+        if not file_path.exists():
+            missing.append(str(file_path))
+            continue
+        if file_path.is_file() and file_path.stat().st_size == 0:
+            empty.append(str(file_path))
+
+    if missing:
+        print(f"[optional] {label} missing: {missing}")
+    if empty:
+        print(f"[optional] {label} empty: {empty}")
+
+
 def validate_raw_inputs() -> None:
-    _validate_files(PROJECT_ROOT, RAW_INPUTS, "Raw training inputs")
+    _validate_files(PROJECT_ROOT, REQUIRED_RAW_INPUTS, "Required raw training inputs")
+    _warn_missing_optional_files(PROJECT_ROOT, OPTIONAL_RAW_INPUTS, "Optional SECOM raw inputs")
 
 
 def validate_mlflow_tracking() -> None:
@@ -103,7 +128,8 @@ def validate_mlflow_tracking() -> None:
 
 
 def validate_processed_outputs() -> None:
-    _validate_files(PROCESSED_DIR, PROCESSED_OUTPUTS, "Processed datasets")
+    _validate_files(PROCESSED_DIR, REQUIRED_PROCESSED_OUTPUTS, "Required processed datasets")
+    _warn_missing_optional_files(PROCESSED_DIR, OPTIONAL_PROCESSED_OUTPUTS, "Optional SECOM processed datasets")
 
 
 def validate_model_artifacts() -> None:

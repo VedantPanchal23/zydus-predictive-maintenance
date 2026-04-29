@@ -120,6 +120,8 @@ def run_checks(ctx: Context) -> int:
             "zydus-postgres",
             "zydus-redis",
             "zydus-airflow",
+            "zydus-airflow-scheduler",
+            "zydus-airflow-postgres",
             "zydus-mlflow",
             "zydus-zookeeper",
         ]

@@ -1,3 +1,5 @@
+name: zydus-pm
+
 x-app-env: &app-env
   DATABASE_URL: postgresql://${APP_DB_USER:-zydus_user}:${APP_DB_PASSWORD:-zydus_pass}@postgres:5432/${APP_DB_NAME:-zydus_db}
   REDIS_URL: redis://redis:6379/0
@@ -201,6 +203,8 @@ services:
       - "${GRAFANA_PORT:-3001}:3001"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../docs/grafana:/var/lib/grafana/dashboards:ro
     networks:
       - zydus-network
     healthcheck:
@@ -386,17 +390,27 @@ services:
 
 volumes:
   postgres_data:
+    name: zydus_postgres_data
   airflow_postgres_data:
+    name: zydus_airflow_postgres_data
   redis_data:
+    name: zydus_redis_data
   zookeeper_data:
+    name: zydus_zookeeper_data
   zookeeper_log:
+    name: zydus_zookeeper_log
   kafka_data:
+    name: zydus_kafka_data
   minio_data:
+    name: zydus_minio_data
   grafana_data:
+    name: zydus_grafana_data
   mlflow_data:
+    name: zydus_mlflow_data
   airflow_logs:
+    name: zydus_airflow_logs
 
 networks:
   zydus-network:
-    driver: bridge
     name: zydus-network
+    driver: bridge
