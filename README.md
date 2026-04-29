@@ -1,4 +1,4 @@
-# 🏭 Zydus Pharma Oncology — AI Predictive Maintenance System
+#  Zydus Pharma Oncology — AI Predictive Maintenance System
 
 > Real-time AI-powered predictive maintenance for 20 critical oncology equipment units at Zydus Pharma Oncology Pvt. Ltd.
 
@@ -42,6 +42,11 @@ Update `infra/.env` before production-style runs, especially:
 ```bash
 cd infra
 docker compose up -d
+```
+
+If you moved the project to a new folder and see duplicate containers/volumes, run a full reset first:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/docker_full_reset.ps1
 ```
 
 ### 3. Verify services
@@ -138,8 +143,35 @@ zydus-predictive-maintenance/
 
 ## 📋 Equipment Monitored
 
-- 5× Drug Manufacturing Lines (MFG-LINE-01 to 05)
-- 4× Cold Storage Units (COLD-UNIT-01 to 04)
-- 4× Lab HPLC Machines (LAB-HPLC-01 to 04)
-- 4× Infusion Pumps (INF-PUMP-01 to 04)
-- 3× Radiation Units (RAD-UNIT-01 to 03)
+- Granulation Line (`GRAN-LINE-01`)
+- Tablet Press (`TABLET-PRESS-01`)
+- Blister Packer (`BLISTER-PACK-01`)
+- Capsule Filler (`CAPSULE-FILL-01`)
+- Coating Machine (`COATING-DRUM-01`)
+- Vial Washer (`VIAL-WASHER-01`)
+- Aseptic Filler (`ASEPTIC-FILL-01`)
+- CIP Skid (`CIP-SKID-01`)
+- Ultra Low Freezer (`ULT-FREEZER-01`)
+- Cold Room (`COLD-ROOM-01`)
+- Chiller Loop (`CHILLER-LOOP-01`)
+- Stability Chamber (`STABILITY-CHAMBER-01`)
+- HPLC System (`HPLC-STACK-01`)
+- LC-MS (`LCMS-01`)
+- Dissolution Tester (`DISSOLUTION-01`)
+- TOC Analyzer (`TOC-ANALYZER-01`)
+- Infusion Pump (`INFUSION-PUMP-01`)
+- Syringe Pump (`SYRINGE-PUMP-01`)
+- Linear Accelerator (`LINAC-01`)
+- CT Scanner (`CT-SCANNER-01`)
+
+## ⚠️ Risk Levels And Actions
+
+| Risk level | Trigger pattern | Action taken by system |
+|-----------|-----------------|------------------------|
+| `stable` | Low anomaly and low failure probability | Continue standard preventive maintenance |
+| `watch` | Early drift signals | Increase monitoring frequency and verify calibration |
+| `warning` | Moderate risk (`fp > 0.40` or equivalent) | Schedule maintenance in next window and watch trends |
+| `high` | Escalating multi-signal risk | Urgent engineering review in current shift |
+| `critical` | Severe risk (`fp > 0.80`, high anomaly, or near-failure horizon) | Create/refresh critical work order and require immediate inspection |
+
+The API now returns `risk_level`, `risk_reason`, and `recommended_action` for each equipment item to support full presentation walkthroughs.

@@ -124,6 +124,18 @@ export default function EquipmentDetail() {
               <div className="text-slate-500">Last maintenance</div>
               <div className="mt-1 font-medium text-slate-900">{formatDate(equipment.last_maintenance_date)}</div>
             </div>
+            <div className="rounded-md bg-slate-50 p-3">
+              <div className="text-slate-500">Risk level</div>
+              <div className="mt-1 font-medium text-slate-900">{humanizeKey(equipment.risk_level, 'unknown')}</div>
+            </div>
+            <div className="rounded-md bg-slate-50 p-3 md:col-span-2">
+              <div className="text-slate-500">Risk reason</div>
+              <div className="mt-1 font-medium text-slate-900">{equipment.risk_reason || 'No risk factors available yet.'}</div>
+            </div>
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 md:col-span-2">
+              <div className="text-amber-700">Recommended action</div>
+              <div className="mt-1 font-medium text-amber-900">{equipment.recommended_action || 'No action required.'}</div>
+            </div>
           </div>
         </div>
 

@@ -1,0 +1,13 @@
+Command to list tables:
+
+docker exec zydus-postgres psql -U zydus_user -d zydus_db 
+
+docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "\d equipment"
+docker exec zydus-postgres psql -U zydus_user -d zydus_db -c "SELECT * FROM equipment LIMIT 10;"
+docker exec zydus-postgres psql -U zydus_user -d zydus_db
+
+\dt
+\d equipment
+SELECT * FROM alerts LIMIT 10;
+
+

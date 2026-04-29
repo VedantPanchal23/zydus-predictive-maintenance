@@ -3,13 +3,18 @@
   "tags": ["infrastructure", "zydus"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
   "templating": {
     "list": []
   },
   "panels": [
     {
+      "id": 1,
       "title": "Kafka Throughput",
       "type": "stat",
       "datasource": {
@@ -23,14 +28,27 @@
             "type": "grafana-postgresql-datasource",
             "uid": "dfhxypndpqcqoe"
           },
-          "rawSql": "SELECT NOW() AS time, count(*)/60.0 AS value FROM sensor_readings WHERE \"timestamp\" > NOW() - INTERVAL '1 minute'",
-          "format": "time_series"
+          "rawSql": "SELECT count(*)/60.0 AS value FROM sensor_readings WHERE \"timestamp\" > NOW() - INTERVAL '1 minute'",
+          "format": "table"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "fixed", "fixedColor": "blue" } } }
+      "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
     },
     {
+      "id": 2,
       "title": "Generated ML Predictions (Today) Inference Layer",
       "type": "stat",
       "datasource": {
@@ -44,14 +62,27 @@
             "type": "grafana-postgresql-datasource",
             "uid": "dfhxypndpqcqoe"
           },
-          "rawSql": "SELECT NOW() AS time, count(*) AS value FROM predictions WHERE predicted_at::date = CURRENT_DATE",
-          "format": "time_series"
+          "rawSql": "SELECT count(*) AS value FROM predictions WHERE predicted_at::date = CURRENT_DATE",
+          "format": "table"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } }
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
     },
     {
+      "id": 3,
       "title": "Database Query Log Velocity",
       "type": "timeseries",
       "datasource": {
@@ -65,11 +96,21 @@
               "type": "grafana-postgresql-datasource",
               "uid": "dfhxypndpqcqoe"
             },
-            "rawSql": "SELECT date_trunc('minute', \"timestamp\") as time, count(*) as inserts FROM sensor_readings WHERE $__timeFilter(\"timestamp\") GROUP BY 1 ORDER BY 1",
+            "rawSql": "SELECT date_trunc('minute', \"timestamp\") as time, count(*) as inserts FROM sensor_readings WHERE \"timestamp\" > NOW() - INTERVAL '30 minute' GROUP BY 1 ORDER BY 1",
             "format": "time_series"
           }
       ],
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 }
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
     }
   ]
 }

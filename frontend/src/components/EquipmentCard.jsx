@@ -11,6 +11,15 @@ const STATUS_CONFIG = {
   unknown: { icon: Activity, tone: 'neutral', label: 'Unknown' },
 };
 
+const RISK_TONE = {
+  stable: 'success',
+  watch: 'neutral',
+  warning: 'warning',
+  high: 'warning',
+  critical: 'critical',
+  unknown: 'neutral',
+};
+
 export default function EquipmentCard({ eq }) {
   const status = STATUS_CONFIG[eq.current_health] || STATUS_CONFIG.unknown;
   const Icon = status.icon;
@@ -35,6 +44,9 @@ export default function EquipmentCard({ eq }) {
 
       <div className="mt-4 flex flex-wrap gap-2">
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+        <StatusBadge tone={RISK_TONE[eq.risk_level] || 'neutral'}>
+          Risk: {humanizeKey(eq.risk_level, 'unknown')}
+        </StatusBadge>
         <StatusBadge tone="neutral">Status: {eq.status}</StatusBadge>
       </div>
 
@@ -52,6 +64,10 @@ export default function EquipmentCard({ eq }) {
           <span className="font-medium">{formatDate(eq.last_maintenance_date)}</span>
         </div>
       </div>
+
+      {eq.recommended_action && (
+        <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">{eq.recommended_action}</p>
+      )}
     </Link>
   );
 }
