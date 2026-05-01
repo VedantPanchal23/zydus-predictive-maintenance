@@ -11,7 +11,7 @@
         "name": "EquipmentID",
         "type": "query",
         "datasource": {
-          "type": "postgres",
+          "type": "grafana-postgresql-datasource",
           "uid": "dfhxypndpqcqoe"
         },
         "query": "SELECT name AS __text, name AS __value FROM equipment ORDER BY name",
@@ -31,14 +31,14 @@
       "title": "Sensor Streaming Variables (Last 24h)",
       "type": "timeseries",
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "dfhxypndpqcqoe"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "dfhxypndpqcqoe"
           },
           "rawSql": "SELECT sr.\"timestamp\" AS time, sr.sensor_name as metric, sr.value FROM sensor_readings sr JOIN equipment e ON e.id = sr.equipment_id WHERE e.name = '${EquipmentID}' AND $__timeFilter(sr.\"timestamp\") ORDER BY 1",

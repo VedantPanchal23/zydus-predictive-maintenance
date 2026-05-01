@@ -11,6 +11,8 @@ datasources:
     secureJsonData:
       password: zydus_pass
     jsonData:
+      database: zydus_db
+      user: zydus_user
       sslmode: disable
       postgresVersion: 1500
       timescaledb: true

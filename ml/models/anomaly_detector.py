@@ -169,7 +169,8 @@ def train_isolation_forest():
             "data_source": data_source,
         })
         mlflow.log_metrics({"precision": precision, "recall": recall, "f1": f1})
-        mlflow.sklearn.log_model(model, "isolation_forest")
+        mlflow.sklearn.log_model(model, "isolation_forest",
+                                 registered_model_name="anomaly_isolation_forest_v1")
 
         # Save artifact
         joblib.dump(model, ARTIFACTS_DIR / "isolation_forest.pkl")
@@ -329,7 +330,8 @@ def train_lstm_autoencoder():
             "threshold": threshold, "best_val_loss": best_val_loss,
             "precision": precision, "recall": recall, "f1": f1,
         })
-        mlflow.pytorch.log_model(model, "lstm_autoencoder")
+        mlflow.pytorch.log_model(model, "lstm_autoencoder",
+                                 registered_model_name="anomaly_lstm_autoencoder_v1")
 
         logger.info(f"  Threshold: {threshold:.6f}")
         logger.info(f"  Precision: {precision:.4f} | Recall: {recall:.4f} | F1: {f1:.4f}")

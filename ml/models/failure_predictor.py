@@ -156,7 +156,7 @@ def train_models():
 
     # ── XGBoost Regressor with Optuna ───────────────────────
     mlflow.set_experiment("failure_prediction")
-    logger.info("\n  Tuning XGBoost Regressor with Optuna (50 trials)...")
+    logger.info("\n  Tuning XGBoost Regressor with Optuna (15 trials)...")
 
     def objective(trial):
         params = {
@@ -176,7 +176,7 @@ def train_models():
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=50, show_progress_bar=True)
+    study.optimize(objective, n_trials=15, show_progress_bar=True)
 
     best_params = study.best_params
     best_params["tree_method"] = "hist"
@@ -229,7 +229,8 @@ def train_models():
         mlflow.log_params(cls_params)
         mlflow.log_metrics({"accuracy": acc, "precision": prec, "recall": rec,
                             "f1": f1, "auc_roc": auc})
-        mlflow.xgboost.log_model(clf, "xgb_classifier")
+        mlflow.xgboost.log_model(clf, "xgb_classifier",
+                                 registered_model_name="failure_classifier_v1")
 
         joblib.dump(clf, ARTIFACTS_DIR / "xgb_classifier.pkl")
         logger.info(f"  Accuracy: {acc:.4f} | Precision: {prec:.4f}")

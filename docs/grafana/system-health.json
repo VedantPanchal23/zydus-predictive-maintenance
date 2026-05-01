@@ -18,14 +18,14 @@
       "title": "Kafka Throughput",
       "type": "stat",
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "dfhxypndpqcqoe"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "dfhxypndpqcqoe"
           },
           "rawSql": "SELECT count(*)/60.0 AS value FROM sensor_readings WHERE \"timestamp\" > NOW() - INTERVAL '1 minute'",
@@ -52,14 +52,14 @@
       "title": "Generated ML Predictions (Today) Inference Layer",
       "type": "stat",
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "dfhxypndpqcqoe"
       },
       "targets": [
         {
           "refId": "B",
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "dfhxypndpqcqoe"
           },
           "rawSql": "SELECT count(*) AS value FROM predictions WHERE predicted_at::date = CURRENT_DATE",
@@ -86,14 +86,14 @@
       "title": "Database Query Log Velocity",
       "type": "timeseries",
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "dfhxypndpqcqoe"
       },
       "targets": [
           {
             "refId": "C",
             "datasource": {
-              "type": "postgres",
+              "type": "grafana-postgresql-datasource",
               "uid": "dfhxypndpqcqoe"
             },
             "rawSql": "SELECT date_trunc('minute', \"timestamp\") as time, count(*) as inserts FROM sensor_readings WHERE \"timestamp\" > NOW() - INTERVAL '30 minute' GROUP BY 1 ORDER BY 1",
