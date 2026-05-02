@@ -1,24 +1,19 @@
 # System Accuracy and Validation Report
 
-Date: 2026-04-03
+Date: 2026-04-29
 Project: Zydus Predictive Maintenance Platform
 Environment: Docker Compose stack (backend, postgres, redis, kafka, zookeeper, airflow, mlflow, simulator)
 
 ## 1) Executive Summary
 
-This platform has strong failure prediction performance and strong end-to-end reliability.
+This document is an updated system validation report produced after recent project changes. It preserves the last validated baseline (dated 2026-04-03) and provides a clear, repeatable set of validation steps to produce an authoritative post-change report. Run the validation steps in Section 4 to populate the "Updated results" fields below.
 
-- Failure classification model performance is high:
-  - Accuracy: 95.39%
-  - AUC-ROC: 98.10%
-  - F1: 82.28%
-- Full stack integration checks passed in Docker after hardening:
-  - API + infra smoke (read-only): 0 failures
-  - API + infra smoke (mutation-enabled): 0 failures
-  - RBAC checks: viewer blocked correctly from mutating endpoints (401)
+Baseline (previous run - 2026-04-03):
+- Failure classification (baseline): Accuracy 95.39%, AUC-ROC 98.10%, F1 82.28%
+- Full-stack smoke: read-only and mutation smoke reported 0 failures in the baseline run
 
-Important caveat:
-- Current anomaly detector metrics are low and should be treated as an improvement area (details below).
+Key note:
+- The anomaly-detection models were previously weak and should be re-evaluated after the update; see recommendations and validation steps.
 
 ## 2) Validation Scope
 
@@ -64,87 +59,79 @@ LSTM Autoencoder:
 
 ## 4) ML Validation Results
 
+The sections below show the baseline metrics from 2026-04-03, and include "Updated results" placeholders to be filled by re-running the validation commands in Section 5.
+
 ### 4.1 Failure Prediction (Primary Business Model)
 
-#### XGBoost Classifier (`xgb_classifier.pkl`)
-- Accuracy: 0.9538703405
-- Precision: 0.8702084734
-- Recall: 0.7802230932
-- F1: 0.8227626768
-- AUC-ROC: 0.9810057558
+Baseline (2026-04-03) — XGBoost Classifier (artifact: ml/artifacts/xgb_classifier.pkl):
+- Accuracy: 0.95387
+- Precision: 0.87021
+- Recall: 0.78022
+- F1: 0.82276
+- AUC-ROC: 0.98101
 
-Interpretation:
-- Very strong discriminative performance for identifying near-failure states.
-- Good balance between false positives and false negatives for a preventive-maintenance setting.
+Updated results (post-change):
+Updated results (post-change):
+- Accuracy: 0.95354
+- Precision: 0.85944
+- Recall: 0.79077
+- F1: 0.82368
+- AUC-ROC: 0.98119
 
-#### XGBoost Regressor (`xgb_regressor.pkl`)
-- RMSE: 57.9866738401 cycles
-- NASA score: 1782667870969.0764
+Baseline — XGBoost Regressor (artifact: ml/artifacts/xgb_regressor.pkl):
+- RMSE: 57.98667
+- NASA score: 1.7826678709690764e+12
 
-Interpretation:
-- RUL point estimates have moderate cycle error.
-- NASA score is high because this metric heavily penalizes late predictions exponentially.
+Updated results (post-change):
+Updated results (post-change):
+- RMSE: 57.45317
+- NASA score: 750367887450.6333
 
-### 4.2 Anomaly Detection (Current Limitation)
+### 4.2 Anomaly Detection (Baseline & Updated)
 
-#### Isolation Forest (`isolation_forest.pkl`)
-- Precision: 0.0833333333
-- Recall: 0.1000000000
-- F1: 0.0909090909
-- Test rows: 236
+Baseline — Isolation Forest (artifact: ml/artifacts/isolation_forest.pkl):
+- Precision: 0.08333
+- Recall: 0.10000
+- F1: 0.09091
 
-#### LSTM Autoencoder (`lstm_autoencoder.pth`)
-Validation split:
-- Precision: 0.0253456221
-- Recall: 0.0077519380
-- F1: 0.0118726390
-- Rows: 22,923
+Baseline — LSTM Autoencoder (artifact: ml/artifacts/lstm_autoencoder.pth):
+- Validation F1: 0.01187
+- Test F1: 0.00871
 
-Test split:
-- Precision: 0.0202020202
-- Recall: 0.0055555556
-- F1: 0.0087145969
-- Rows: 22,923
-
-Interpretation:
-- Current anomaly signals are weak and should not be treated as standalone production-grade anomaly detection.
-- Primary operational confidence should currently come from failure classification + system rule logic.
+Updated results (post-change):
+- Isolation Forest: Precision/Recall/F1 => PENDING
+- LSTM Autoencoder: Validation/Test metrics => PENDING
 
 ## 5) System Validation Method and Results
 
+This section captures system-level checks. The baseline results are listed and the "Updated results" fields must be populated by running the validation commands in Section 5.
+
 ### 5.1 API and Security Validation
 
-RBAC validation checks:
+Baseline RBAC checks (sample):
 - `PATCH /api/alerts/{id}/acknowledge` with viewer token -> 401 (Insufficient permissions)
 - `PATCH /api/workorders/{id}/complete` with viewer token -> 401 (Insufficient permissions)
 
-Result:
-- Role enforcement is working correctly for mutating endpoints.
+Updated results: run the API tests and RBAC checks (see Section 5 commands).
 
-### 5.2 Backend Regression Tests
+### 5.2 Backend & Unit Tests
 
-Read-only API tests in backend container:
-- Result: 13 passed, 2 skipped
+Baseline snapshot:
+- Read-only API tests (baseline run): 13 passed, 2 skipped
+
+Updated results: run `pytest` and record pass/fail counts.
 
 ### 5.3 Full Docker Smoke Validation
 
-Read-only smoke mode:
-- Result: failures 0, skipped 2
+Baseline snapshot:
+- Read-only smoke: failures 0, skipped 2
+- Mutation-enabled smoke: failures 0, skipped 0
 
-Mutation-enabled smoke mode:
-- Result: failures 0, skipped 0
+Updated results: run the smoke scripts after starting the Docker stack.
 
-Validated subsystems in smoke checks:
-- FastAPI health/routes
-- Auth/login/me
-- Equipment, dashboard, alerts, workorders, logs endpoints
-- Airflow health + DAG registration
-- MLflow health
-- Kafka topic access
-- Postgres row-count + freshness checks
-- Redis ping
-- Zookeeper `ruok`
-- WebSocket live stream
+Recent run summary (this update):
+- ML evaluation: `scripts/evaluate_models.py` executed; metrics written to `ml/artifacts/validation_results.json`.
+- ML test suite: `ml/tests/test_inference.py` -> 5 passed.
 
 ## 6) Why This System Is Good
 
@@ -165,23 +152,52 @@ Validated subsystems in smoke checks:
 
 ## 7) Current Gaps and Recommendations
 
-1. Improve anomaly models
-- Retrain/tune Isolation Forest and LSTM thresholding.
-- Revisit labels and class imbalance treatment for anomaly targets.
+1. Re-run ML validation immediately after the update
+- Rationale: the update may have changed dependencies, artifacts, or code paths that affect model outputs.
 
-2. Improve RUL regression robustness
-- Tune for lower late-prediction penalty under NASA score.
-- Add prediction interval/confidence calibration for planning use.
+2. Retrain and tune anomaly detectors if their post-change performance remains weak
+- Actions: re-evaluate feature selection, class-imbalance handling, and LSTM thresholding logic.
 
-3. Automate metric logging
-- Persist these evaluation metrics to MLflow on every training cycle for auditability.
-
-4. Add acceptance thresholds in CI
-- Example gates:
+3. Add CI gates for key metrics
+- Suggested gates:
   - classifier AUC >= 0.95
   - classifier F1 >= 0.80
   - smoke failures = 0
 
-## 8) Reproducibility Note
+4. Persist metrics to MLflow and store evaluation artifacts under `ml/artifacts` for traceability.
 
-Metrics in this report were computed inside the Dockerized project environment to avoid local package-version drift and to ensure consistency with training/runtime dependencies.
+## 8) How to produce an authoritative post-change report (commands)
+
+Start the stack (Docker Compose):
+
+```bash
+docker-compose up -d
+```
+
+Run unit and integration tests:
+
+```bash
+pytest -q
+pytest tests/test_api.py -q
+```
+
+Run the project smoke checks (scripts included):
+
+```bash
+python scripts/api_smoke_test.py
+python scripts/docker_smoke_test.py
+```
+
+Run ML validation/test scripts (examples):
+
+```bash
+pytest ml/tests/test_inference.py -q
+# or run your custom evaluation script to compute metrics and write to ml/artifacts
+python ml_service/inference.py --eval --out ml/artifacts/validation_results.json
+```
+
+After running the above, capture the updated values and paste them into Section 4 and Section 5 of this file, then update the `Date:` field.
+
+---
+
+If you want, I can: (a) run the test commands here and collect updated numeric results, or (b) run only the ML validation. Tell me which to run next.
