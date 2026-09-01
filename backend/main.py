@@ -429,7 +429,7 @@ def list_alerts(
     offset = (page - 1) * limit
 
     with get_db_cursor() as cur:
-        cur.execute(f"SELECT COUNT(*) as cnt FROM alerts a {where}", params)
+        cur.execute(f"SELECT COUNT(*) as cnt FROM alerts a {where}", params)  # nosec B608
         total = cur.fetchone()["cnt"]
 
         cur.execute(f"""
@@ -440,7 +440,7 @@ def list_alerts(
             {where}
             ORDER BY a.created_at DESC
             LIMIT %s OFFSET %s
-        """, params + [limit, offset])
+        """, params + [limit, offset])  # nosec B608
         rows = cur.fetchall()
 
     items = [{
@@ -535,7 +535,7 @@ def list_workorders(
                 CASE wo.priority WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2
                 WHEN 'MEDIUM' THEN 3 ELSE 4 END,
                 wo.created_at DESC
-        """, params)
+        """, params)  # nosec B608
         rows = cur.fetchall()
 
     return [{

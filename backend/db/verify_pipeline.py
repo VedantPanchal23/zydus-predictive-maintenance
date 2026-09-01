@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pipeline Verification Script
 =============================
 Connects to TimescaleDB and verifies the data pipeline is working.
@@ -23,13 +23,13 @@ DB_URL = os.environ.get(
 def verify():
     print()
     print("Pipeline verification report")
-    print("─" * 45)
+    print("â”€" * 45)
 
     try:
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
     except Exception as e:
-        print(f"✗ Cannot connect to database: {e}")
+        print(f"âœ— Cannot connect to database: {e}")
         sys.exit(1)
 
     # Total readings
@@ -89,18 +89,18 @@ def verify():
         resp.raise_for_status()
         data = resp.json()
         temp = data["current"]["temperature_2m"]
-        print(f"Open-Meteo API working     : YES (latest ambient temp: {temp}�C)")
+        print(f"Open-Meteo API working     : YES (latest ambient temp: {temp}ÂC)")
     except Exception as e:
         print(f"Open-Meteo API working     : NO ({e})")
 
     # Status
     print()
     if total > 0 and reporting == total_eq:
-        print("✅ Pipeline is HEALTHY")
+        print("âœ… Pipeline is HEALTHY")
     elif total > 0:
-        print(f"⚠️  Pipeline is PARTIAL — only {reporting}/{total_eq} equipment reporting")
+        print(f"âš ï¸  Pipeline is PARTIAL â€” only {reporting}/{total_eq} equipment reporting")
     else:
-        print("❌ Pipeline has NO DATA — check simulator and Kafka consumer")
+        print("âŒ Pipeline has NO DATA â€” check simulator and Kafka consumer")
 
     cur.close()
     conn.close()

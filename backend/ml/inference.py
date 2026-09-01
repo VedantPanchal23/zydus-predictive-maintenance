@@ -114,7 +114,7 @@ class InferenceService:
             lstm_path = self.artifacts_dir / "lstm_autoencoder.pth"
             if lstm_path.exists():
                 self.lstm_model = LSTMAutoencoder(input_size=FEATURE_DIM, hidden_size=64, latent_size=16)
-                self.lstm_model.load_state_dict(torch.load(lstm_path, map_location="cpu"))
+                self.lstm_model.load_state_dict(torch.load(lstm_path, map_location="cpu", weights_only=True))  # nosec B614
                 self.lstm_model.eval()
                 thresh_file = self.artifacts_dir / "lstm_threshold.json"
                 if thresh_file.exists():
