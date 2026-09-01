@@ -65,6 +65,26 @@ jobs:
           DATABASE_URL: postgresql://zydus_admin:password123@localhost:5432/zydus_pm
         run: |
           PGPASSWORD=password123 psql -h localhost -U zydus_admin -d zydus_pm -f backend/db/schema.sql
+      
+      - name: Start Backend API for integration tests
+        env:
+          DATABASE_URL: ******localhost:5432/zydus_pm
+          REDIS_URL: redis://localhost:6379/0
+          READ_ONLY_MODE: "0"
+        run: |
+          cd backend
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend-ci.log 2>&1 &
+          cd ..
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8000/health > /dev/null; then
+              echo "Backend API is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend API failed to start"
+          tail -n 200 backend-ci.log || true
+          exit 1
 
       - name: Run Backend Pytest Suite with Coverage
         env:
