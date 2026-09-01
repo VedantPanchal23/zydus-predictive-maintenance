@@ -1,11 +1,14 @@
 import pytest
 import psycopg2
+import os
 
 from ml_service.alert_engine import build_alert_classification
 
 # Bypass any `.env` loaded strings referring to the docker 'postgres' hostname.
-DB_URL = "postgresql://zydus_user:zydus_pass@127.0.0.1:5432/zydus_db"
-
+DB_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://zydus_user:zydus_pass@127.0.0.1:5432/zydus_db",
+)
 
 @pytest.fixture(scope="module")
 def db_conn():
