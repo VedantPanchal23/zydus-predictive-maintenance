@@ -1,1 +1,1 @@
-# Kafka utilities package
+# Kafka utilities package
