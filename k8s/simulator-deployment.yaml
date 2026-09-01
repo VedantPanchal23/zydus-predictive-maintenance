@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zydus-simulator
+  namespace: zydus-pm
+  labels:
+    app: zydus-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zydus-simulator
+  template:
+    metadata:
+      labels:
+        app: zydus-simulator
+    spec:
+      containers:
+        - name: sensor-simulator
+          image: zydus-pm-simulator:latest
+          envFrom:
+            - configMapRef:
+                name: zydus-pm-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

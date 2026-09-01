@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zydus-consumer
+  namespace: zydus-pm
+  labels:
+    app: zydus-consumer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zydus-consumer
+  template:
+    metadata:
+      labels:
+        app: zydus-consumer
+    spec:
+      containers:
+        - name: ingestion-worker
+          image: zydus-pm-backend:latest
+          command: ["python", "consumer.py"]
+          envFrom:
+            - configMapRef:
+                name: zydus-pm-config
+            - secretRef:
+                name: zydus-pm-secrets
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"

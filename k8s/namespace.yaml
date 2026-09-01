@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zydus-pm
+  labels:
+    environment: production
+    regulatory-framework: us-fda-21cfr-part11
+    compliance-tier: gamp5-cat4

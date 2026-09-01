@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zydus-frontend
+  namespace: zydus-pm
+  labels:
+    app: zydus-frontend
+    tier: ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zydus-frontend
+  template:
+    metadata:
+      labels:
+        app: zydus-frontend
+    spec:
+      containers:
+        - name: nginx-frontend
+          image: zydus-pm-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zydus-frontend
+  namespace: zydus-pm
+spec:
+  type: ClusterIP
+  selector:
+    app: zydus-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
