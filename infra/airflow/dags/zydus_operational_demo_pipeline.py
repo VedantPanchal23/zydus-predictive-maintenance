@@ -44,7 +44,7 @@ def validate_runtime_services() -> None:
     try:
         with psycopg2.connect(DATABASE_URL) as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM equipment WHERE status = 'active'")
+                cur.execute("SELECT COUNT(*) FROM equipment WHERE UPPER(status) = 'ACTIVE'")
                 equipment_count = cur.fetchone()[0]
     except psycopg2.Error as exc:
         raise AirflowException(f"Postgres runtime database is unavailable: {exc}") from exc
