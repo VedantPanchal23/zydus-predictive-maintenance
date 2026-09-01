@@ -207,7 +207,6 @@ def start_broadcaster(app=None):
 
 
 def stop_broadcaster():
-    global _broadcaster_task
     if _broadcaster_task and not _broadcaster_task.done():
         _broadcaster_task.cancel()
 

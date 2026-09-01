@@ -97,7 +97,7 @@ def start_scheduler():
 
 
 def stop_scheduler():
-    global _scheduler_task, _running
+    global _running
     _running = False
     if _scheduler_task and not _scheduler_task.done():
         _scheduler_task.cancel()

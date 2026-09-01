@@ -38,7 +38,6 @@ def resolve_equipment_id(name_or_id: str | int) -> Optional[int]:
         return name_or_id
     if str(name_or_id).isdigit():
         return int(name_or_id)
-    global _eq_map
     if name_or_id in _eq_map:
         return _eq_map[name_or_id]
     try:
