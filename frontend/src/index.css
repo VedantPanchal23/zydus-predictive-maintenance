@@ -3,26 +3,63 @@
 @tailwind utilities;
 
 @layer base {
-  html {
+  :root {
     color-scheme: light;
   }
-
-  body {
-    @apply bg-white text-slate-900 antialiased;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  .dark {
+    color-scheme: dark;
   }
-
-  * {
-    @apply border-slate-200;
+  body {
+    @apply bg-white text-neutral-900 font-sans antialiased transition-colors duration-150;
+  }
+  .dark body {
+    @apply bg-black text-neutral-100;
   }
 }
 
-@layer utilities {
-  .glass-panel {
-    @apply rounded-lg border border-slate-200 bg-white;
-  }
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272a;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
 
-  .status-badge {
-    @apply rounded-full px-2 py-1 text-xs font-medium;
-  }
+/* Crisp Enterprise Card Style */
+.app-card {
+  @apply bg-white dark:bg-[#0a0a0a] border border-neutral-200 dark:border-neutral-800 rounded-lg transition-all duration-150;
+}
+
+.app-well {
+  @apply bg-neutral-50 dark:bg-[#121212] border border-neutral-200/80 dark:border-neutral-800/80 rounded-md;
+}
+
+.app-input {
+  @apply bg-white dark:bg-[#0a0a0a] border border-neutral-300 dark:border-neutral-700 rounded-md px-3 py-1.5 text-xs text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-900 dark:focus:ring-white focus:border-neutral-900 dark:focus:border-white transition-all font-sans;
+}
+
+.app-btn-primary {
+  @apply bg-neutral-900 hover:bg-neutral-800 active:bg-black dark:bg-white dark:hover:bg-neutral-200 dark:active:bg-neutral-300 text-white dark:text-neutral-900 text-xs font-semibold px-3.5 py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm;
+}
+
+.app-btn-secondary {
+  @apply bg-white hover:bg-neutral-50 active:bg-neutral-100 dark:bg-[#121212] dark:hover:bg-[#1a1a1a] text-neutral-700 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white text-xs font-medium px-3.5 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

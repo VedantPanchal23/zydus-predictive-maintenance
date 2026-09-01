@@ -2,26 +2,24 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,jsx}",
   ],
-  darkMode: 'class',
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
         zydus: {
-          50: '#f4f6f8',
-          100: '#e1e7ec',
-          500: '#3b82f6',
-          900: '#1e3a8a',
-          950: '#172554',
-          darkBg: '#0f172a',
-          darkCard: '#1e293b'
-        }
+          blue: "#003b73",
+          navy: "#0a2540",
+          accent: "#0066cc",
+          light: "#f0f4f8",
+        },
       },
-      animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-      }
+      fontFamily: {
+        sans: ["-apple-system", "BlinkMacSystemFont", "Inter", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+        mono: ["SFMono-Regular", "Menlo", "Monaco", "Consolas", "JetBrains Mono", "monospace"],
+      },
     },
   },
   plugins: [],
-}
+};
