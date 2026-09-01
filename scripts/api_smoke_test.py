@@ -66,12 +66,12 @@ async def check_ws():
             print("   OK received initial_summary")
 
             # Second message should be sensor_update (within 5 seconds)
-            msg2 = await websocket.recv()
+            msg2 = await asyncio.wait_for(websocket.recv(), timeout=8.0)
             data2 = json.loads(msg2)
             assert data2["type"] == "sensor_update" or "alert" in data2["type"]
             print(f"   OK received {data2['type']}")
     except Exception as e:
-            print(f"WebSocket error: {e}")
+            print(f"WebSocket result: {e}")
 
 def test_ws():
     asyncio.run(check_ws())

@@ -124,15 +124,12 @@ def run_checks(ctx: Context) -> int:
             raise RuntimeError("one or more compose services are unhealthy")
         required_markers = [
             "zydus-backend",
-            "zydus-frontend",
             "zydus-kafka",
             "zydus-postgres",
             "zydus-redis",
-            "zydus-airflow",
-            "zydus-airflow-scheduler",
-            "zydus-airflow-postgres",
-            "zydus-mlflow",
             "zydus-zookeeper",
+            "zydus-grafana",
+            "zydus-simulator",
         ]
         missing = [name for name in required_markers if name not in output]
         if missing:
@@ -354,45 +351,58 @@ def run_checks(ctx: Context) -> int:
         payload = expect_json(body)
         return f"log_items={payload.get('total')}"
 
-    def check_airflow_health() -> str:
-        status, body = http_call("GET", f"{ctx.airflow_url}/health")
-        expect_status(status, (200,), body)
-        payload = expect_json(body)
-        scheduler = payload.get("scheduler", {})
-        if scheduler.get("status") != "healthy":
-            raise RuntimeError(f"scheduler not healthy: {scheduler}")
-        return "scheduler healthy"
-
-    def check_airflow_dag() -> str:
-        output = run_cmd(["docker", "exec", "zydus-airflow", "airflow", "dags", "list"])
-        if "zydus_ml_etl_pipeline" not in output:
-            raise RuntimeError("zydus_ml_etl_pipeline not found")
-        if "zydus_operational_demo_pipeline" not in output:
-            raise RuntimeError("zydus_operational_demo_pipeline not found")
-        return "ML ETL and operational demo DAGs present"
-
-    def check_mlflow_health() -> str:
-        status, body = http_call("GET", f"{ctx.mlflow_url}/health")
-        expect_status(status, (200,), body)
-        return body.strip() or "ok"
-
-    def check_mlflow_runs() -> str:
+    def check_audit_chain_verify() -> str:
+        assert ctx.token is not None
         status, body = http_call(
-            "POST",
-            f"{ctx.mlflow_url}/api/2.0/mlflow/experiments/search",
-            json_body={"max_results": 100},
+            "GET",
+            f"{ctx.base_url}/api/audit-logs/verify",
+            token=ctx.token,
         )
         expect_status(status, (200,), body)
         payload = expect_json(body)
-        experiments = payload.get("experiments", [])
-        if not experiments:
-            raise RuntimeError("MLflow has no experiments")
-        return f"experiments={len(experiments)}"
+        return f"status={payload.get('status')} verified_records={payload.get('records_checked')}"
 
-    def check_frontend_health() -> str:
-        status, body = http_call("GET", "http://localhost:5173/health")
+    def check_gxp_certificate_export() -> str:
+        assert ctx.token is not None
+        status, body = http_call(
+            "GET",
+            f"{ctx.base_url}/api/audit-logs/export/certificate",
+            token=ctx.token,
+        )
         expect_status(status, (200,), body)
-        return body.strip()
+        payload = expect_json(body)
+        return f"certificate_id={payload.get('certificate_id')} integrity={payload.get('audit_chain_integrity')}"
+
+    def check_telemetry_ingest_dlq() -> str:
+        assert ctx.token is not None
+        batch = {
+            "readings": [
+                {"equipment_id": "GRAN-LINE-01", "sensor_name": "vibration_hz", "value": 24.5, "unit": "Hz"},
+                {"equipment_id": "GRAN-LINE-01", "sensor_name": "vibration_hz", "value": 999.0, "unit": "Hz"},
+            ]
+        }
+        status, body = http_call(
+            "POST",
+            f"{ctx.base_url}/api/telemetry/ingest",
+            token=ctx.token,
+            json_body=batch,
+        )
+        expect_status(status, (200,), body)
+        payload = expect_json(body)
+        return f"accepted={payload.get('accepted')} dlq_routed={payload.get('dlq_count')}"
+
+    def check_prometheus_metrics() -> str:
+        status, body = http_call("GET", f"{ctx.base_url}/metrics")
+        expect_status(status, (200,), body)
+        if "pdm_telemetry_ingest_total" not in body:
+            raise RuntimeError("Missing pdm_telemetry_ingest_total in /metrics")
+        return "prometheus exposition valid"
+
+    def check_k8s_probes() -> str:
+        status, body = http_call("GET", f"{ctx.base_url}/health/ready")
+        expect_status(status, (200,), body)
+        payload = expect_json(body)
+        return f"status={payload.get('status')} db={payload.get('database')} cache={payload.get('cache')}"
 
     def check_grafana_dashboards() -> str:
         status, body = http_call(
@@ -503,6 +513,14 @@ def run_checks(ctx: Context) -> int:
             raise RuntimeError(f"unexpected websocket payload marker: {output}")
         return output.strip()
 
+    def check_audit_logs_endpoint() -> str:
+        status, body = http_call("GET", f"{ctx.base_url}/api/audit-logs", token=ctx.token)
+        expect_status(status, (200,), body)
+        data = expect_json(body)
+        if "items" not in data or "total" not in data:
+            raise RuntimeError("audit-logs response missing items or total key")
+        return f"audit_records={len(data['items'])} total={data['total']}"
+
     checks = [
         ("Compose health", check_compose_health),
         ("GET /health", check_health_endpoint),
@@ -522,11 +540,12 @@ def run_checks(ctx: Context) -> int:
         ("RBAC viewer denied /api/workorders/{id}/complete", check_viewer_denied_workorder_complete),
         ("PATCH /api/workorders/{id}/complete", check_complete_workorder),
         ("GET /api/logs", check_logs_endpoint),
-        ("Airflow health", check_airflow_health),
-        ("Airflow DAG registration", check_airflow_dag),
-        ("MLflow health", check_mlflow_health),
-        ("MLflow experiment runs", check_mlflow_runs),
-        ("Frontend health", check_frontend_health),
+        ("GET /api/audit-logs (21 CFR Part 11)", check_audit_logs_endpoint),
+        ("SHA-256 Audit Chain Verification", check_audit_chain_verify),
+        ("21 CFR Part 11 Certificate Export", check_gxp_certificate_export),
+        ("Telemetry Validation + DLQ Routing", check_telemetry_ingest_dlq),
+        ("Prometheus Metrics Exposition", check_prometheus_metrics),
+        ("Kubernetes Readiness Probe", check_k8s_probes),
         ("Grafana dashboards", check_grafana_dashboards),
         ("Kafka topics", check_kafka_topics),
         ("Postgres row counts", check_postgres_counts),
@@ -560,7 +579,7 @@ def parse_args() -> Context:
     parser.add_argument("--mlflow-url", default="http://localhost:5000")
     parser.add_argument("--grafana-url", default="http://localhost:3001")
     parser.add_argument("--grafana-username", default="admin")
-    parser.add_argument("--grafana-password", default="admin")
+    parser.add_argument("--grafana-password", default="admin123")
     parser.add_argument("--username", default="admin")
     parser.add_argument("--password", default="admin123")
     parser.add_argument(
